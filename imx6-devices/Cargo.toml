@@ -1,0 +1,7 @@
+[package]
+name = "imx6-devices"
+version = "0.1.0"
+authors = ["Jon Lamb"]
+edition = "2021"
+
+[dependencies]

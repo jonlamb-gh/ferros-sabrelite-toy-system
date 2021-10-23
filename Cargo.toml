@@ -1,8 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
+    "imx6-devices",
+    "imx6-hal",
+    "hello-printer",
     "root-task",
-    "hello-printer"
 ]
 
 [profile.dev]

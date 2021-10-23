@@ -77,7 +77,7 @@ dependencies = [
 [[package]]
 name = "cross_queue"
 version = "0.1.0"
-source = "git+https://github.com/auxoncorp/ferros#e26f2bc99211a9ee54bc761f788337d35a8dfc80"
+source = "git+https://github.com/auxoncorp/ferros.git#e26f2bc99211a9ee54bc761f788337d35a8dfc80"
 
 [[package]]
 name = "either"
@@ -88,7 +88,7 @@ checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 [[package]]
 name = "ferros"
 version = "0.1.1"
-source = "git+https://github.com/auxoncorp/ferros#e26f2bc99211a9ee54bc761f788337d35a8dfc80"
+source = "git+https://github.com/auxoncorp/ferros.git#e26f2bc99211a9ee54bc761f788337d35a8dfc80"
 dependencies = [
  "arrayvec",
  "cross_queue",
@@ -104,7 +104,7 @@ dependencies = [
 [[package]]
 name = "ferros-build"
 version = "0.1.0"
-source = "git+https://github.com/auxoncorp/ferros#e26f2bc99211a9ee54bc761f788337d35a8dfc80"
+source = "git+https://github.com/auxoncorp/ferros.git#e26f2bc99211a9ee54bc761f788337d35a8dfc80"
 dependencies = [
  "memmap",
  "selfe-arc",
@@ -134,6 +134,14 @@ dependencies = [
  "selfe-runtime",
  "selfe-sys",
 ]
+
+[[package]]
+name = "imx6-devices"
+version = "0.1.0"
+
+[[package]]
+name = "imx6-hal"
+version = "0.1.0"
 
 [[package]]
 name = "itertools"
@@ -341,7 +349,7 @@ checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 [[package]]
 name = "smart_alloc"
 version = "0.1.0"
-source = "git+https://github.com/auxoncorp/ferros#e26f2bc99211a9ee54bc761f788337d35a8dfc80"
+source = "git+https://github.com/auxoncorp/ferros.git#e26f2bc99211a9ee54bc761f788337d35a8dfc80"
 dependencies = [
  "proc-macro2 0.4.30",
  "quote 0.6.13",
