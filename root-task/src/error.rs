@@ -18,7 +18,6 @@ pub enum TopLevelError {
     ProcessSetupError(ProcessSetupError),
     UTBuddyError(UTBuddyError),
     RetypeError(RetypeError),
-    TestAssertionFailure(&'static str),
 }
 
 impl From<AllocError> for TopLevelError {

@@ -13,7 +13,6 @@ use ferros::vspace::*;
 use ferros::*;
 use selfe_arc;
 use typenum::*;
-use xmas_elf;
 
 use hello_printer;
 
@@ -32,7 +31,7 @@ fn main() {
 }
 
 fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelError> {
-    let (allocator, mut dev_allocator) = micro_alloc::bootstrap_allocators(&raw_bootinfo)?;
+    let (allocator, _dev_allocator) = micro_alloc::bootstrap_allocators(&raw_bootinfo)?;
     let mut allocator = WUTBuddy::from(allocator);
 
     let (root_cnode, local_slots) = root_cnode(&raw_bootinfo);
@@ -73,7 +72,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
 
     smart_alloc!(|slots: local_slots, ut: uts| {
         let (asid_pool, _asid_control) = asid_control.allocate_asid_pool(ut, slots)?;
-        let (hello_asid, asid_pool) = asid_pool.alloc();
+        let (hello_asid, _asid_pool) = asid_pool.alloc();
 
         // TODO: can we determine these numbers statically now, from the elf file's
         // layout?
@@ -98,7 +97,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             &mut scratch,
         )?;
 
-        let (hello_cnode, hello_slots) = retype_cnode::<U12>(ut, slots)?;
+        let (hello_cnode, _hello_slots) = retype_cnode::<U12>(ut, slots)?;
         let params = hello_printer::ProcParams {
             number_of_hellos: 5,
             data: [0xab; 124],
