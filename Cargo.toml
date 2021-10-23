@@ -3,7 +3,7 @@ resolver = "2"
 members = [
     "imx6-devices",
     "imx6-hal",
-    "hello-printer",
+    "applications/hello-printer",
     "root-task",
 ]
 
