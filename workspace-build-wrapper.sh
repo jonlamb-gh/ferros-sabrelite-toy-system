@@ -16,3 +16,5 @@ cargo build -p hello-printer $@;
 
 echo "======================== building root-task ======================="
 cargo build -p root-task $@;
+
+exit 0
