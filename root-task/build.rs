@@ -15,6 +15,8 @@ fn main() {
 
     embed_resources(&resources, vec![&console as &dyn Resource]);
 
+    // Make sure root-task gets rebuilt if anything changes
+    // since we stuff our elf procs in the binary
     println!("cargo:rerun-if-changed=../applications");
     println!("cargo:rerun-if-changed=../drivers");
 }

@@ -1,6 +1,9 @@
 #![no_std]
 #![no_main]
 
+// TODO - wire up something like https://docs.rs/menu/0.3.2/menu/ for a basic command-line
+// interface
+
 use core::fmt::Write as WriteFmt;
 use ferros::{cap::role, debug_println};
 use imx6_hal::embedded_hal::serial::Read;
