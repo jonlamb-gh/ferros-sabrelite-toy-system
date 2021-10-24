@@ -4,6 +4,7 @@
 mod error;
 
 use error::TopLevelError;
+use ferros::alloc::micro_alloc::*;
 use ferros::alloc::*;
 use ferros::bootstrap::*;
 use ferros::cap::*;
@@ -14,7 +15,7 @@ use ferros::*;
 use selfe_arc;
 use typenum::*;
 
-use hello_printer;
+use console;
 
 extern "C" {
     static _selfe_arc_data_start: u8;
@@ -31,7 +32,7 @@ fn main() {
 }
 
 fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelError> {
-    let (allocator, _dev_allocator) = micro_alloc::bootstrap_allocators(&raw_bootinfo)?;
+    let (allocator, mut dev_allocator) = micro_alloc::bootstrap_allocators(&raw_bootinfo)?;
     let mut allocator = WUTBuddy::from(allocator);
 
     let (root_cnode, local_slots) = root_cnode(&raw_bootinfo);
@@ -44,6 +45,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         asid_control,
         user_image,
         root_tcb,
+        mut irq_control,
         ..
     } = BootInfo::wrap(
         &raw_bootinfo,
@@ -61,21 +63,19 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
     };
 
     let archive = selfe_arc::read::Archive::from_slice(archive_slice);
-    let hello_printer_elf_data = archive
-        .file(resources::HelloPrinter::IMAGE_NAME)
-        .expect("find hello-printer in arc");
+    let console_elf_data = archive
+        .file(resources::Console::IMAGE_NAME)
+        .expect("Can't find console image in arc");
 
-    debug_println!("Binary found, size is {}", hello_printer_elf_data.len());
-    debug_println!("\n\n\n");
+    debug_println!("Binary found, size is {}", console_elf_data.len());
+    debug_println!("*********************************\n");
 
     let uts = alloc::ut_buddy(allocator.alloc_strong::<U20>(&mut ut_slots)?);
 
     smart_alloc!(|slots: local_slots, ut: uts| {
         let (asid_pool, _asid_control) = asid_control.allocate_asid_pool(ut, slots)?;
-        let (hello_asid, _asid_pool) = asid_pool.alloc();
+        let (console_asid, _asid_pool) = asid_pool.alloc();
 
-        // TODO: can we determine these numbers statically now, from the elf file's
-        // layout?
         let vspace_slots: LocalCNodeSlots<U16> = slots;
         let vspace_ut: LocalCap<Untyped<U16>> = ut;
 
@@ -84,12 +84,12 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         let reserved_for_scratch = root_vspace.reserve(sacrificial_page)?;
         let mut scratch = reserved_for_scratch.as_scratch(&mut root_vspace).unwrap();
 
-        let mut hello_vspace = VSpace::new_from_elf::<resources::HelloPrinter>(
+        let mut console_vspace = VSpace::new_from_elf::<resources::Console>(
             retype(ut, slots)?, // paging_root
-            hello_asid,
+            console_asid,
             vspace_slots.weaken(), // slots
             vspace_ut.weaken(),    // paging_untyped
-            &hello_printer_elf_data,
+            &console_elf_data,
             slots, // page_slots
             ut,    // elf_writable_mem
             &user_image,
@@ -97,25 +97,45 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             &mut scratch,
         )?;
 
-        let (hello_cnode, _hello_slots) = retype_cnode::<U12>(ut, slots)?;
-        let params = hello_printer::ProcParams {
-            number_of_hellos: 5,
-            data: [0xab; 124],
+        let (console_cnode, console_slots) = retype_cnode::<U12>(ut, slots)?;
+
+        let (slots_c, _console_slots) = console_slots.alloc();
+        let (int_consumer, _int_consumer_token) =
+            InterruptConsumer::new(ut, &mut irq_control, &root_cnode, slots, slots_c)?;
+
+        let uart1_ut = dev_allocator
+            .get_untyped_by_address_range_slot_infallible(
+                PageAlignedAddressRange::new_by_size(
+                    imx6_hal::pac::uart1::UART1::PADDR as _,
+                    arch::PageBytes::USIZE,
+                )?,
+                slots,
+            )?
+            .as_strong::<arch::PageBits>()
+            .expect("Device untyped was not the right size!");
+
+        let uart1_mem = console_vspace.map_region(
+            UnmappedMemoryRegion::new_device(uart1_ut, slots)?,
+            CapRights::RW,
+            arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
+        )?;
+
+        let params = console::ProcParams {
+            uart: unsafe { imx6_hal::pac::uart1::UART1::from_vaddr(uart1_mem.vaddr() as _) },
+            int_consumer,
         };
 
-        let stack_mem: UnmappedMemoryRegion<
-            <resources::HelloPrinter as ElfProc>::StackSizeBits,
-            _,
-        > = UnmappedMemoryRegion::new(ut, slots).unwrap();
+        let stack_mem: UnmappedMemoryRegion<<resources::Console as ElfProc>::StackSizeBits, _> =
+            UnmappedMemoryRegion::new(ut, slots).unwrap();
         let stack_mem =
             root_vspace.map_region(stack_mem, CapRights::RW, arch::vm_attributes::DEFAULT)?;
 
-        let mut hello_process = StandardProcess::new::<hello_printer::ProcParams, _>(
-            &mut hello_vspace,
-            hello_cnode,
+        let mut console_process = StandardProcess::new::<console::ProcParams<_>, _>(
+            &mut console_vspace,
+            console_cnode,
             stack_mem,
             &root_cnode,
-            hello_printer_elf_data,
+            console_elf_data,
             params,
             ut, // ipc_buffer_ut
             ut, // tcb_ut
@@ -125,7 +145,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         )?;
     });
 
-    hello_process.start()?;
+    console_process.start()?;
 
     unsafe {
         loop {

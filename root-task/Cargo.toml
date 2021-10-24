@@ -12,7 +12,11 @@ ferros = { git = "https://github.com/auxoncorp/ferros" }
 typenum = "1.10"
 xmas-elf = "0.7"
 
-hello-printer = { path = "../applications/hello-printer" }
+[dependencies.console]
+path = "../applications/console"
+
+[dependencies.imx6-hal]
+path = "../imx6-hal"
 
 [build-dependencies]
 ferros-build = { git = "https://github.com/auxoncorp/ferros" }

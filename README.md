@@ -20,15 +20,13 @@ cargo install --git https://github.com/auxoncorp/selfe-sys selfe-config --bin se
 ### Buidling
 
 ```bash
-# ./build.sh
-selfe build --platform sabre --sel4_arch aarch32
+./build.sh
 ```
 
 ### Simulating
 
 ```bash
-# ./simulate.sh
-selfe simulate --platform sabre --sel4_arch aarch32 -- -smp 4
+./simulate.sh
 ```
 
 ```text
@@ -54,15 +52,13 @@ Jumping to kernel-image entry point...
 
 Bootstrapping kernel
 Booting all finished, dropped to user space
-Binary found, size is 1872960
+Binary found, size is 2113172
+*********************************
 
+console process started, run 'telnet 0.0.0.0 8888' to connect
+```
 
-
-
-hello from elf!
-Hello elven world 0!
-Hello elven world 1!
-Hello elven world 2!
-Hello elven world 3!
-Hello elven world 4!
+Telnet to get at the console:
+```bash
+telnet 0.0.0.0 8888
 ```

@@ -5,3 +5,6 @@ authors = ["Jon Lamb"]
 edition = "2021"
 
 [dependencies]
+typenum = "1.10"
+bounded-registers = { git = "https://github.com/auxoncorp/bounded-registers.git" }
+static_assertions = "1.1"

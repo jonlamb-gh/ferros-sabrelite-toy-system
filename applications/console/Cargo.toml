@@ -1,5 +1,5 @@
 [package]
-name = "hello-printer"
+name = "console"
 version = "0.1.0"
 authors = ["Jon Lamb"]
 edition = "2021"
@@ -8,3 +8,6 @@ edition = "2021"
 selfe-sys = { git = "https://github.com/auxoncorp/selfe-sys" }
 selfe-runtime = { git = "https://github.com/auxoncorp/selfe-sys", features = ["panic_handler"] }
 ferros = { git = "https://github.com/auxoncorp/ferros.git" }
+
+[dependencies.imx6-hal]
+path = "../../imx6-hal"

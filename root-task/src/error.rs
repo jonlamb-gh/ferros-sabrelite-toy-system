@@ -1,4 +1,6 @@
-use ferros::alloc::micro_alloc::Error as AllocError;
+use ferros::alloc::micro_alloc::{
+    DeviceRangeAllocError, Error as AllocError, PageAlignedAddressRangeError,
+};
 use ferros::alloc::ut_buddy::UTBuddyError;
 use ferros::cap::IRQError;
 use ferros::cap::RetypeError;
@@ -9,6 +11,8 @@ use ferros::vspace::VSpaceError;
 #[derive(Debug)]
 pub enum TopLevelError {
     AllocError(AllocError),
+    DeviceRangeAllocError(DeviceRangeAllocError),
+    PageAlignedAddressRangeError(PageAlignedAddressRangeError),
     IPCError(IPCError),
     MultiConsumerError(MultiConsumerError),
     VSpaceError(VSpaceError),
@@ -23,6 +27,18 @@ pub enum TopLevelError {
 impl From<AllocError> for TopLevelError {
     fn from(e: AllocError) -> Self {
         TopLevelError::AllocError(e)
+    }
+}
+
+impl From<DeviceRangeAllocError> for TopLevelError {
+    fn from(e: DeviceRangeAllocError) -> Self {
+        TopLevelError::DeviceRangeAllocError(e)
+    }
+}
+
+impl From<PageAlignedAddressRangeError> for TopLevelError {
+    fn from(e: PageAlignedAddressRangeError) -> Self {
+        TopLevelError::PageAlignedAddressRangeError(e)
     }
 }
 

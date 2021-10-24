@@ -11,8 +11,8 @@ if [ -z ${SEL4_PLATFORM+x} ]; then
 fi
 
 # build all packages in the right order, so binary packaging works as expected.
-echo "======================= building hello-printer ======================"
-cargo build -p hello-printer $@;
+echo "======================= building console ======================"
+cargo build -p console $@;
 
 echo "======================== building root-task ======================="
 cargo build -p root-task $@;
