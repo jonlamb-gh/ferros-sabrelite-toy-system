@@ -64,4 +64,11 @@ console process started, run 'telnet 0.0.0.0 8888' to connect
 Telnet to get at the console:
 ```bash
 telnet 0.0.0.0 8888
+
+> help
+AVAILABLE ITEMS:
+  foo <a> [ <b> ] [OPTIONS...]
+  bar
+  sub
+  help [ <command> ]
 ```

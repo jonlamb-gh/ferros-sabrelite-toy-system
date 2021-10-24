@@ -88,6 +88,7 @@ version = "0.1.0"
 dependencies = [
  "ferros",
  "imx6-hal",
+ "menu",
  "selfe-runtime",
  "selfe-sys",
 ]
@@ -214,6 +215,12 @@ dependencies = [
  "libc",
  "winapi",
 ]
+
+[[package]]
+name = "menu"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b03d7f798bfe97329ad6df937951142eec93886b37d87010502dd25e8cc75fd5"
 
 [[package]]
 name = "nb"

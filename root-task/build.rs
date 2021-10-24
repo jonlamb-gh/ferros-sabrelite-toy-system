@@ -10,7 +10,7 @@ fn main() {
         path: bin_dir.join("console"),
         image_name: "console".to_owned(),
         type_name: "Console".to_owned(),
-        stack_size_bits: None,
+        stack_size_bits: Some(14),
     };
 
     embed_resources(&resources, vec![&console as &dyn Resource]);

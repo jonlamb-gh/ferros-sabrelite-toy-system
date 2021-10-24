@@ -8,6 +8,7 @@ edition = "2021"
 selfe-sys = { git = "https://github.com/auxoncorp/selfe-sys" }
 selfe-runtime = { git = "https://github.com/auxoncorp/selfe-sys", features = ["panic_handler"] }
 ferros = { git = "https://github.com/auxoncorp/ferros.git" }
+menu = "0.3"
 
 [dependencies.imx6-hal]
 path = "../../imx6-hal"

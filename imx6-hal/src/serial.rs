@@ -65,8 +65,8 @@ impl fmt::Write for Serial<UART1> {
         use serial::Write;
         for b in s.bytes() {
             // Convert '\n' to '\r\n'
-            if b as char == '\n' {
-                block!(self.write('\r' as _)).ok();
+            if b == b'\n' {
+                block!(self.write(b'\r')).ok();
             }
             block!(self.write(b)).map_err(|_| fmt::Error)?;
         }
