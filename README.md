@@ -23,13 +23,13 @@ cargo install --git https://github.com/auxoncorp/selfe-sys selfe-config --bin se
 ### Buidling
 
 ```bash
-./build.sh
+./scripts/build.sh
 ```
 
 ### Simulating
 
 ```bash
-./simulate.sh
+./scripts/simulate.sh
 ```
 
 ```text

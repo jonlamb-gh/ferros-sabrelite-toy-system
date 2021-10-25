@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 set -e
 
 if [ -z ${SEL4_CONFIG_PATH+x} ]; then

@@ -1,9 +1,16 @@
+#!/usr/bin/env bash
+
 set -e
+
+./scripts/mkflash.sh
 
 selfe simulate \
     --platform sabre \
     --sel4_arch aarch32 \
     --serial-override='-serial telnet:0.0.0.0:8888,server,nowait -serial mon:stdio' \
-    -- -smp 4
+    -- \
+    -smp 4 \
+    -device sst25vf016b,drive=spi \
+    -drive if=none,file=target/flash/flash.bin,format=raw,id=spi
 
 exit 0

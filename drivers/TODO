@@ -1,1 +1,4 @@
 driver procs here
+
+flash/m25p80
+https://github.com/spotify/linux/blob/master/drivers/mtd/devices/m25p80.c

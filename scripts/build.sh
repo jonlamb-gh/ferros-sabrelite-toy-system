@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 set -e
 
 selfe build --platform sabre --sel4_arch aarch32

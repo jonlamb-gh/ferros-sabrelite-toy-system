@@ -7,11 +7,11 @@ KernelHaveFPU = true
 cross_compiler_prefix = "arm-linux-gnueabihf-"
 
 [build.sabre.debug]
-make_root_task = "./workspace-build-wrapper.sh --target=armv7-unknown-linux-gnueabihf"
+make_root_task = "./scripts/workspace-build-wrapper.sh --target=armv7-unknown-linux-gnueabihf"
 root_task_image = "target/armv7-unknown-linux-gnueabihf/debug/root-task"
 
 [build.sabre.release]
-make_root_task = "./workspace-build-wrapper.sh --target=armv7-unknown-linux-gnueabihf --release"
+make_root_task = "./scripts/workspace-build-wrapper.sh --target=armv7-unknown-linux-gnueabihf --release"
 root_task_image = "target/armv7-unknown-linux-gnueabihf/release/root-task"
 
 [sel4]

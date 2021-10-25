@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-extern crate selfe_runtime;
+use selfe_runtime as _;
 
 use console::ProcParams;
 use core::fmt::Write as WriteFmt;
@@ -9,6 +9,8 @@ use ferros::{cap::role, debug_println};
 use imx6_hal::embedded_hal::serial::Read;
 use imx6_hal::serial::Serial;
 use menu::*;
+
+// TODO - hook up commands to other procs (net, fs, etc)
 
 #[no_mangle]
 pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {

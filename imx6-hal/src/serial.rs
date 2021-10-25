@@ -15,7 +15,7 @@ pub struct Serial<UART> {
 
 impl Serial<UART1> {
     pub fn new(mut uart: UART1) -> Self {
-        // TODO - do real init
+        // TODO - do real reset + init
         // https://github.com/torvalds/linux/blob/master/drivers/tty/serial/imx.c
         uart.ctl2
             .modify(Control2::SoftwareReset::Field::checked::<U1>());
