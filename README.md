@@ -12,10 +12,16 @@
 ### Dependencies
 
 ```bash
-# Add to PATH
+# Add the extracted toolchain's bin directory to your PATH
 wget https://releases.linaro.org/components/toolchain/binaries/7.4-2019.02/arm-linux-gnueabihf/gcc-linaro-7.4.1-2019.02-i686_arm-linux-gnueabihf.tar.xz
 
 sudo apt install qemu-system-arm
+
+# Install seL4 python deps
+# https://github.com/seL4/seL4/blob/4d0f02c029560cae0e8d93727eb17d58bcecc2ac/tools/python-deps/setup.py
+pip3 install --user setuptools sel4-deps
+
+rustup target add armv7-unknown-linux-gnueabihf
 
 cargo install --git https://github.com/auxoncorp/selfe-sys selfe-config --bin selfe --features bin --force
 ```
