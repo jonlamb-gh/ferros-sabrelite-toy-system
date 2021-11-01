@@ -7,6 +7,8 @@ use ferros::cap::RetypeError;
 use ferros::error::SeL4Error;
 use ferros::userland::{FaultManagementError, IPCError, MultiConsumerError, ProcessSetupError};
 use ferros::vspace::VSpaceError;
+use log::SetLoggerError;
+use selfe_arc::read::ReadError as ArchiveReadError;
 
 #[derive(Debug)]
 pub enum TopLevelError {
@@ -22,6 +24,8 @@ pub enum TopLevelError {
     ProcessSetupError(ProcessSetupError),
     UTBuddyError(UTBuddyError),
     RetypeError(RetypeError),
+    ArchiveReadError(ArchiveReadError),
+    SetLoggerError(SetLoggerError),
 }
 
 impl From<AllocError> for TopLevelError {
@@ -93,5 +97,17 @@ impl From<UTBuddyError> for TopLevelError {
 impl From<RetypeError> for TopLevelError {
     fn from(e: RetypeError) -> Self {
         TopLevelError::RetypeError(e)
+    }
+}
+
+impl From<ArchiveReadError> for TopLevelError {
+    fn from(e: ArchiveReadError) -> Self {
+        TopLevelError::ArchiveReadError(e)
+    }
+}
+
+impl From<SetLoggerError> for TopLevelError {
+    fn from(e: SetLoggerError) -> Self {
+        TopLevelError::SetLoggerError(e)
     }
 }

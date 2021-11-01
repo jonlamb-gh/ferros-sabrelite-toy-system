@@ -3,8 +3,9 @@
 use core::mem;
 use core::ops::{Deref, DerefMut};
 use static_assertions::const_assert_eq;
+use typenum::{Unsigned, U58};
 
-pub type Irq = typenum::U58;
+pub type Irq = U58;
 
 register! {
     Rx,
@@ -106,6 +107,7 @@ pub struct UART1 {
 
 impl UART1 {
     pub const PADDR: u32 = 0x0202_0000;
+    pub const SIZE: usize = crate::PageBytes::USIZE;
 
     /// # Safety
     /// out of thin air

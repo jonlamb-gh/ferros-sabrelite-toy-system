@@ -3,8 +3,9 @@
 use core::mem;
 use core::ops::{Deref, DerefMut};
 use static_assertions::const_assert_eq;
+use typenum::{Unsigned, U63};
 
-pub type Irq = typenum::U63;
+pub type Irq = U63;
 
 register! {
     Rx,
@@ -51,14 +52,18 @@ register! {
         ]
         PostDivider         WIDTH(U4) OFFSET(U8),
         PreDivider          WIDTH(U4) OFFSET(U12),
-        DataReadyControl    WIDTH(U2) OFFSET(U16),
+        DataReadyControl    WIDTH(U2) OFFSET(U16) [
+            Any = U0,
+            EdgeTriggered = U1,
+            LevelTriggered = U2
+        ]
         ChannelSelect       WIDTH(U2) OFFSET(U18) [
             ChipSelect0 = U0,
             ChipSelect1 = U1,
             ChipSelect2 = U2,
             ChipSelect3 = U3
         ]
-        BurstLength         WIDTH(U11) OFFSET(U20)
+        BurstLength         WIDTH(U12) OFFSET(U20)
     ]
 }
 
@@ -91,7 +96,14 @@ register! {
             ActiveHigh = U0,
             ActiveLow = U1
         ]
-        // TODO - ch2-4
+        Channel2Polarity        WIDTH(U1) OFFSET(U6) [
+            ActiveHigh = U0,
+            ActiveLow = U1
+        ]
+        Channel3Polarity        WIDTH(U1) OFFSET(U7) [
+            ActiveHigh = U0,
+            ActiveLow = U1
+        ]
         Channel0WaveFromSelect  WIDTH(U1) OFFSET(U8),
         Channel1WaveFromSelect  WIDTH(U1) OFFSET(U9),
         Channel2WaveFromSelect  WIDTH(U1) OFFSET(U10),
@@ -104,7 +116,14 @@ register! {
             ActiveLow = U0,
             ActiveHigh = U1
         ]
-        // TODO - ch2-4
+        Channel2SSPolarity      WIDTH(U1) OFFSET(U14) [
+            ActiveLow = U0,
+            ActiveHigh = U1
+        ]
+        Channel3SSPolarity      WIDTH(U1) OFFSET(U15) [
+            ActiveLow = U0,
+            ActiveHigh = U1
+        ]
         Channel0DataCtl        WIDTH(U1) OFFSET(U16) [
             StayHigh = U0,
             StayLow = U1
@@ -113,7 +132,14 @@ register! {
             StayHigh = U0,
             StayLow = U1
         ]
-        // TODO - ch2-4
+        Channel2DataCtl        WIDTH(U1) OFFSET(U18) [
+            StayHigh = U0,
+            StayLow = U1
+        ]
+        Channel3DataCtl        WIDTH(U1) OFFSET(U19) [
+            StayHigh = U0,
+            StayLow = U1
+        ]
         Channel0SclkCtl         WIDTH(U1) OFFSET(U20) [
             StayLow = U0,
             StayHigh = U1
@@ -122,7 +148,14 @@ register! {
             StayLow = U0,
             StayHigh = U1
         ]
-        // TODO - ch2-4
+        Channel2SclkCtl         WIDTH(U1) OFFSET(U22) [
+            StayLow = U0,
+            StayHigh = U1
+        ]
+        Channel3SclkCtl         WIDTH(U1) OFFSET(U23) [
+            StayLow = U0,
+            StayHigh = U1
+        ]
         HtLength  WIDTH(U5) OFFSET(U24)
     ]
 }
@@ -132,8 +165,7 @@ register! {
     u32,
     RW,
     Fields [
-        TxFifoEmptyEnable  WIDTH(U1) OFFSET(U0)
-        // TODO
+        Bits  WIDTH(U8) OFFSET(U0)
     ]
 }
 
@@ -153,7 +185,20 @@ register! {
     ]
 }
 
-const_assert_eq!(mem::size_of::<RegisterBlock>(), 0x1C);
+register! {
+    Period,
+    u32,
+    RW,
+    Fields [
+        SamplePeriod  WIDTH(U14) OFFSET(U0),
+        ClockSource  WIDTH(U1) OFFSET(U15) [
+            SpiClock = U0,
+            RefClock = U1
+        ]
+    ]
+}
+
+const_assert_eq!(mem::size_of::<RegisterBlock>(), 0x20);
 
 #[repr(C)]
 pub struct RegisterBlock {
@@ -162,8 +207,9 @@ pub struct RegisterBlock {
     pub ctl: Control::Register,   // 0x08
     pub cfg: Config::Register,    // 0x0C
     pub int: Interrupt::Register, // 0x10
-    __reserved_0: [u32; 1],       // 0x14
+    __reserved_0: u32,            // 0x14
     pub status: Status::Register, // 0x18
+    pub period: Period::Register, // 0x1C
 }
 
 pub struct ECSPI1 {
@@ -172,6 +218,7 @@ pub struct ECSPI1 {
 
 impl ECSPI1 {
     pub const PADDR: u32 = 0x0200_8000;
+    pub const SIZE: usize = crate::PageBytes::USIZE;
 
     /// # Safety
     /// out of thin air

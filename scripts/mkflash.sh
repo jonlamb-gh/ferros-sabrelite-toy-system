@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# 2MB flash
 
 set -e
 
@@ -8,7 +9,7 @@ BASEDIR=$(dirname "$FILE")
 mkdir -p "$BASEDIR"
 
 if [ ! -f "$FILE" ]; then
-    dd if=/dev/zero of="$FILE" bs=1M count=64
+    dd if=/dev/zero of="$FILE" bs=1M count=2
 fi
 
 exit 0

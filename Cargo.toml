@@ -3,6 +3,9 @@ resolver = "2"
 members = [
     "imx6-devices",
     "imx6-hal",
+    "sabrelite-bsp",
+    "drivers/iomux",
+    "drivers/persistent-storage",
     "applications/console",
     "root-task",
 ]

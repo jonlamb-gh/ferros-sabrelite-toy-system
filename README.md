@@ -6,6 +6,7 @@
 * [IMX6DQRM refman](http://cache.freescale.com/files/32bit/doc/ref_manual/IMX6DQRM.pdf)
 * [HW user manual](https://boundarydevices.com/wp-content/uploads/2014/11/SABRE_Lite_Hardware_Manual_rev11.pdf)
 * [HW components](https://boundarydevices.com/sabre_lite-revD.pdf)
+* [imx6 platform sdk](https://github.com/flit/imx6_platform_sdk)
 
 ## Getting Started
 
@@ -15,6 +16,7 @@
 # Add the extracted toolchain's bin directory to your PATH
 wget https://releases.linaro.org/components/toolchain/binaries/7.4-2019.02/arm-linux-gnueabihf/gcc-linaro-7.4.1-2019.02-i686_arm-linux-gnueabihf.tar.xz
 
+# Might need to manually install version 6.1.0
 sudo apt install qemu-system-arm
 
 # Install seL4 python deps
@@ -61,10 +63,35 @@ Jumping to kernel-image entry point...
 
 Bootstrapping kernel
 Booting all finished, dropped to user space
-Binary found, size is 2113172
-*********************************
 
-console process started, run 'telnet 0.0.0.0 8888' to connect
+Bootstrapping kernel
+Booting all finished, dropped to user space
+TRACE: [root-task] Initializing
+TRACE: [root-task] Found iomux ELF data size=2769676
+TRACE: [root-task] Found persistent-storage ELF data size=2999236
+TRACE: [root-task] Found console ELF data size=2895828
+TRACE: [root-task] Setting up iomux driver
+TRACE: [root-task] Setting up persistent-storage driver
+TRACE: [root-task] Setting up console application
+TRACE: [console] process started
+INFO: [console] run 'telnet 0.0.0.0 8888' to connect to the console interface
+TRACE: [persistent-storage] process started, storage vaddr=0x4F000 size=4096
+TRACE: [iomux] process started
+DEBUG: [iomux] Processing request ConfigureEcSpi1
+TRACE: [iomux] PAD_EIM_D17__ECSPI1_MISO
+TRACE: [iomux] PAD_EIM_D18__ECSPI1_MOSI
+TRACE: [iomux] PAD_EIM_D16__ECSPI1_SCLK
+TRACE: [iomux] PAD_EIM_D19__GPIO3_IO19
+TRACE: [persistent-storage] Configured ECSPI1 IO resp=EcSpi1Configured
+TRACE: [ECSPI1] init
+TRACE: [ECSPI1] ctl=0x20F1, cfg=0x0000, period=0x8000
+TRACE: [ECSPI1] ctl=0x20F1, cfg=0x0000, period=0x8000
+TRACE: [ECSPI1] transfer len 1 bit_len 8
+TRACE: [ECSPI1] transfer len 1 bit_len 8
+TRACE: [ECSPI1] ctl=0x20F1, cfg=0x0000, period=0x8000
+TRACE: [ECSPI1] transfer len 1 bit_len 8
+TRACE: [ECSPI1] transfer len 6 bit_len 48
+TRACE: [flash] init status=(empty) MFR=0xBF ID=0x2541
 ```
 
 Telnet to get at the console:

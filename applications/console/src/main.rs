@@ -5,23 +5,30 @@ use selfe_runtime as _;
 
 use console::ProcParams;
 use core::fmt::Write as WriteFmt;
-use ferros::{cap::role, debug_println};
-use imx6_hal::embedded_hal::serial::Read;
-use imx6_hal::serial::Serial;
+use ferros::cap::role;
 use menu::*;
+use sabrelite_bsp::debug_logger::DebugLogger;
+use sabrelite_bsp::embedded_hal::serial::Read;
+use sabrelite_bsp::imx6_hal::serial::Serial;
+
+static LOGGER: DebugLogger = DebugLogger;
 
 // TODO - hook up commands to other procs (net, fs, etc)
 
+#[allow(improper_ctypes_definitions)]
 #[no_mangle]
 pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
-    debug_println!("console process started, run 'telnet 0.0.0.0 8888' to connect");
+    log::set_logger(&LOGGER)
+        .map(|()| log::set_max_level(log::LevelFilter::Trace))
+        .unwrap();
+
+    log::trace!("[console] process started");
 
     let serial = Serial::new(params.uart);
-
     let mut buffer = [0_u8; 64];
-
     let state = Runner::new(&ROOT_MENU, &mut buffer, serial);
 
+    log::info!("[console] run 'telnet 0.0.0.0 8888' to connect to the console interface");
     params.int_consumer.consume(state, move |mut state| {
         if let Ok(b) = state.context.read() {
             state.input_byte(b);
@@ -30,7 +37,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     })
 }
 
-type Output = Serial<imx6_hal::pac::uart1::UART1>;
+type Output = Serial<sabrelite_bsp::imx6_hal::pac::uart1::UART1>;
 
 const ROOT_MENU: Menu<Output> = Menu {
     label: "root",

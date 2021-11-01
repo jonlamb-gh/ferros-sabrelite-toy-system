@@ -1,5 +1,5 @@
 [package]
-name = "console"
+name = "iomux"
 version = "0.1.0"
 authors = ["Jon Lamb"]
 edition = "2021"
@@ -8,7 +8,6 @@ edition = "2021"
 selfe-sys = { git = "https://github.com/auxoncorp/selfe-sys" }
 selfe-runtime = { git = "https://github.com/auxoncorp/selfe-sys", features = ["panic_handler"] }
 ferros = { git = "https://github.com/auxoncorp/ferros.git" }
-menu = "0.3"
 log = "0.4"
 
 [dependencies.sabrelite-bsp]

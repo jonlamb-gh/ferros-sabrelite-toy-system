@@ -1,0 +1,401 @@
+#![no_std]
+#![no_main]
+
+use selfe_runtime as _;
+
+use console::ProcParams;
+use core::fmt::Write as WriteFmt;
+use ferros::{cap::role, debug_println};
+use imx6_hal::embedded_hal::serial::Read;
+use imx6_hal::serial::Serial;
+use log::{Level, LevelFilter, Metadata, Record};
+use menu::*;
+
+// TODO - move to file-system proc
+use imx6_hal::embedded_hal::blocking::spi::Transfer;
+use imx6_hal::embedded_hal::digital::v2::OutputPin;
+use imx6_hal::flash::*;
+use imx6_hal::flash::{BlockDevice, Read as FlashRead};
+use imx6_hal::pac::gpio::GPIO3;
+use imx6_hal::pac::iomuxc::*;
+use imx6_hal::pac::typenum;
+use imx6_hal::spi::Spi;
+
+static LOGGER: SeL4DebugLogger = SeL4DebugLogger;
+
+struct SeL4DebugLogger;
+
+impl log::Log for SeL4DebugLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        //metadata.level() <= Level::Info
+        true
+    }
+
+    fn log(&self, record: &Record) {
+        if self.enabled(record.metadata()) {
+            debug_println!("{}: {}", record.level(), record.args());
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+// TODO - hook up commands to other procs (net, fs, etc)
+
+// TODO - move to file-system proc
+struct CsPin {
+    gpio: GPIO3,
+    offset: usize,
+}
+impl imx6_hal::embedded_hal::digital::v2::OutputPin for CsPin {
+    type Error = core::convert::Infallible;
+
+    fn set_low(&mut self) -> Result<(), Self::Error> {
+        let val = self.gpio.data.read();
+        unsafe { self.gpio.data.write(val & !(1 << self.offset)) };
+        debug_println!("CS LOW 0x{:X}", self.gpio.data.read());
+
+        //unsafe { self.gpio.data.write(val | (1 << self.offset)) };
+        Ok(())
+    }
+
+    fn set_high(&mut self) -> Result<(), Self::Error> {
+        let val = self.gpio.data.read();
+        unsafe { self.gpio.data.write(val | (1 << self.offset)) };
+        debug_println!("CS HIGH 0x{:X}", self.gpio.data.read());
+
+        //unsafe { self.gpio.data.write(val & !(1 << self.offset)) };
+        Ok(())
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
+    debug_println!("console process started, run 'telnet 0.0.0.0 8888' to connect");
+
+    log::set_logger(&LOGGER)
+        .map(|()| log::set_max_level(LevelFilter::Trace))
+        .unwrap();
+
+    log::debug!("SFSDFSDFSD");
+
+    let mut iomuxc = params.iomuxc;
+
+    // TODO r-m-w vs writel ?
+
+    // TODO - HAL stuff for this
+    // PAD_EIM_D17__ECSPI1_MISO
+    //iomuxc
+    //    .sw_mux_ctl_pad_eim_data17
+    //    .modify(MuxControl::MuxMode::ALT1);
+    unsafe { iomuxc.sw_mux_ctl_pad_eim_data17.write(0x1) };
+    unsafe { iomuxc.ecspi1_miso_select_input.write(0) };
+    unsafe { iomuxc.sw_pad_ctl_pad_eim_data17.write(0x100b1) };
+
+    // PAD_EIM_D18__ECSPI1_MOSI
+    //    iomuxc
+    //        .sw_mux_ctl_pad_eim_data18
+    //        .modify(MuxControl::MuxMode::ALT1);
+    unsafe { iomuxc.sw_mux_ctl_pad_eim_data18.write(0x1) };
+    unsafe { iomuxc.ecspi1_mosi_select_input.write(0) };
+    unsafe { iomuxc.sw_pad_ctl_pad_eim_data18.write(0x100b1) };
+
+    // PAD_EIM_D16__ECSPI1_SCLK
+    iomuxc
+        .sw_mux_ctl_pad_eim_data16
+        .modify(MuxControl::MuxMode::ALT1);
+    unsafe { iomuxc.ecspi1_cspi_clk_in_select_input.write(0) };
+    unsafe { iomuxc.sw_pad_ctl_pad_eim_data16.write(0xb1) };
+
+    // GPIO3_IO19
+    // ALT5 == GPIO3_IO19
+    iomuxc
+        .sw_mux_ctl_pad_eim_data19
+        .modify(MuxControl::MuxMode::ALT5);
+    unsafe { iomuxc.sw_pad_ctl_pad_eim_data19.write(0xb0b1) };
+    // EIM_DATA19_ALT1
+    //unsafe { iomuxc.ecspi1_ss1_select_input.write(0) };
+    //iomuxc
+    //    .ecspi1_ss1_select_input
+    //    .modify(SelectInput::Daisy::Field::checked::<typenum::U0>());
+
+    debug_println!("IOMUX ready");
+
+    // TODO
+    // CS GPIO3_19
+    let mut gpio = params.gpio3;
+    let offset = 19;
+    let val = gpio.data.read();
+    unsafe { gpio.data.write(val | (1 << offset)) };
+    let val = gpio.direction.read();
+    unsafe { gpio.direction.write(val | (1 << offset)) };
+    debug_println!(
+        "GPIO ready data=0x{:X} dir=0x{:X}",
+        gpio.data.read(),
+        gpio.direction.read()
+    );
+    let mut cs = CsPin { gpio, offset };
+    cs.set_high().unwrap(); // redundant from above
+
+    let mut spi = Spi::new(params.spi);
+
+    cs.set_low().unwrap();
+    for _ in 0..10000 {
+        imx6_hal::asm::nop();
+    }
+    cs.set_high().unwrap();
+
+    debug_println!("MANUAL TEST");
+
+    debug_println!("ReadJedecId");
+    cs.set_low().unwrap();
+    let mut cmd = [0x9f];
+    spi.transfer(&mut cmd).unwrap();
+    let mut cmd = [0, 0, 0, 0, 0, 0];
+    spi.transfer(&mut cmd).unwrap();
+    cs.set_high().unwrap();
+    debug_println!("..............");
+
+    debug_println!("WriteEnable");
+    cs.set_low().unwrap();
+    let mut cmd = [0x06];
+    spi.transfer(&mut cmd).unwrap();
+    cs.set_high().unwrap();
+    debug_println!("..............");
+
+    debug_println!("WriteStatus");
+    cs.set_low().unwrap();
+    let mut cmd = [0x01];
+    spi.transfer(&mut cmd).unwrap();
+    let mut cmd = [0x00];
+    spi.transfer(&mut cmd).unwrap();
+    cs.set_high().unwrap();
+    debug_println!("..............");
+
+    debug_println!("ReadStatus");
+    cs.set_low().unwrap();
+    let mut cmd = [0x05];
+    spi.transfer(&mut cmd).unwrap();
+    let mut cmd = [0];
+    spi.transfer(&mut cmd).unwrap();
+    cs.set_high().unwrap();
+    debug_println!("..............");
+
+    const BUF: usize = 32;
+    let mut buf = [0; BUF];
+
+    debug_println!("ReadFast");
+    let addr = 0_u32;
+    cs.set_low().unwrap();
+    let mut cmd = [
+        0x0B,
+        (addr >> 16) as u8,
+        (addr >> 8) as u8,
+        addr as u8,
+        0xFF,
+    ];
+    spi.transfer(&mut cmd).unwrap();
+    spi.transfer(&mut buf).unwrap();
+    cs.set_high().unwrap();
+    debug_println!("..............");
+
+    /*
+    loop {
+        unsafe { selfe_sys::seL4_Yield() };
+        if false {
+            break;
+        }
+    }
+    */
+
+    /*
+    let mut cmd = [0x9f, 0, 0, 0, 0, 0, 0];
+    cs.set_low().unwrap();
+    spi.transfer(&mut cmd).unwrap();
+    cs.set_high().unwrap();
+    */
+
+    /*
+    let mut cmd = [0, 0];
+    cs.set_low().unwrap();
+    spi.transfer(&mut cmd).unwrap();
+    cs.set_high().unwrap();
+    */
+
+    debug_println!("DONE MANUAL TEST");
+    // TODO -try and do this flash stuff by hand with spi, see if we can read things
+
+    /*
+    let mut flash = Flash::init(spi, cs).unwrap();
+    debug_println!("MADE FLASH");
+    let id = flash.read_jedec_id().unwrap();
+    // JEDEC ID 0x2541 MFR 0xBF
+    debug_println!(
+        "Flash ID {:?}, mfr 0x{:X}, did {:?}",
+        id,
+        id.mfr_code(),
+        id.device_id()
+    );
+    let status = flash.read_status().unwrap();
+    debug_println!("Flash status {:?}", status);
+
+    flash.read(0, &mut buf).unwrap();
+    debug_println!("in flash {:02X?}", buf);
+    */
+    // console stuff below
+    let serial = Serial::new(params.uart);
+
+    let mut buffer = [0_u8; 64];
+
+    let state = Runner::new(&ROOT_MENU, &mut buffer, serial);
+
+    params.int_consumer.consume(state, move |mut state| {
+        if let Ok(b) = state.context.read() {
+            state.input_byte(b);
+        }
+        state
+    })
+}
+
+type Output = Serial<imx6_hal::pac::uart1::UART1>;
+
+const ROOT_MENU: Menu<Output> = Menu {
+    label: "root",
+    items: &[
+        &Item {
+            item_type: ItemType::Callback {
+                function: select_foo,
+                parameters: &[
+                    Parameter::Mandatory {
+                        parameter_name: "a",
+                        help: Some("This is the help text for 'a'"),
+                    },
+                    Parameter::Optional {
+                        parameter_name: "b",
+                        help: None,
+                    },
+                    Parameter::Named {
+                        parameter_name: "verbose",
+                        help: None,
+                    },
+                    Parameter::NamedValue {
+                        parameter_name: "level",
+                        argument_name: "INT",
+                        help: Some("Set the level of the dangle"),
+                    },
+                ],
+            },
+            command: "foo",
+            help: Some(
+                "Makes a foo appear.
+This is some extensive help text.
+It contains multiple paragraphs and should be preceeded by the parameter list.
+",
+            ),
+        },
+        &Item {
+            item_type: ItemType::Callback {
+                function: select_bar,
+                parameters: &[],
+            },
+            command: "bar",
+            help: Some("fandoggles a bar"),
+        },
+        &Item {
+            item_type: ItemType::Menu(&Menu {
+                label: "sub",
+                items: &[
+                    &Item {
+                        item_type: ItemType::Callback {
+                            function: select_baz,
+                            parameters: &[],
+                        },
+                        command: "baz",
+                        help: Some("thingamobob a baz"),
+                    },
+                    &Item {
+                        item_type: ItemType::Callback {
+                            function: select_quux,
+                            parameters: &[],
+                        },
+                        command: "quux",
+                        help: Some("maximum quux"),
+                    },
+                ],
+                entry: Some(enter_sub),
+                exit: Some(exit_sub),
+            }),
+            command: "sub",
+            help: Some("enter sub-menu"),
+        },
+    ],
+    entry: Some(enter_root),
+    exit: Some(exit_root),
+};
+
+fn enter_root(_menu: &Menu<Output>, context: &mut Output) {
+    writeln!(context, "In enter_root").unwrap();
+}
+
+fn exit_root(_menu: &Menu<Output>, context: &mut Output) {
+    writeln!(context, "In exit_root").unwrap();
+}
+
+fn select_foo<'a>(_menu: &Menu<Output>, item: &Item<Output>, args: &[&str], context: &mut Output) {
+    writeln!(context, "In select_foo. Args = {:?}", args).unwrap();
+    writeln!(
+        context,
+        "a = {:?}",
+        ::menu::argument_finder(item, args, "a")
+    )
+    .unwrap();
+    writeln!(
+        context,
+        "b = {:?}",
+        ::menu::argument_finder(item, args, "b")
+    )
+    .unwrap();
+    writeln!(
+        context,
+        "verbose = {:?}",
+        ::menu::argument_finder(item, args, "verbose")
+    )
+    .unwrap();
+    writeln!(
+        context,
+        "level = {:?}",
+        ::menu::argument_finder(item, args, "level")
+    )
+    .unwrap();
+    writeln!(
+        context,
+        "no_such_arg = {:?}",
+        ::menu::argument_finder(item, args, "no_such_arg")
+    )
+    .unwrap();
+}
+
+fn select_bar<'a>(_menu: &Menu<Output>, _item: &Item<Output>, args: &[&str], context: &mut Output) {
+    writeln!(context, "In select_bar. Args = {:?}", args).unwrap();
+}
+
+fn enter_sub(_menu: &Menu<Output>, context: &mut Output) {
+    writeln!(context, "In enter_sub").unwrap();
+}
+
+fn exit_sub(_menu: &Menu<Output>, context: &mut Output) {
+    writeln!(context, "In exit_sub").unwrap();
+}
+
+fn select_baz<'a>(_menu: &Menu<Output>, _item: &Item<Output>, args: &[&str], context: &mut Output) {
+    writeln!(context, "In select_baz: Args = {:?}", args).unwrap();
+}
+
+fn select_quux<'a>(
+    _menu: &Menu<Output>,
+    _item: &Item<Output>,
+    args: &[&str],
+    context: &mut Output,
+) {
+    writeln!(context, "In select_quux: Args = {:?}", args).unwrap();
+}

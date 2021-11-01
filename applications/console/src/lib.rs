@@ -2,7 +2,7 @@
 
 use ferros::cap::{role, CNodeRole};
 use ferros::userland::{InterruptConsumer, RetypeForSetup};
-use imx6_hal::pac::uart1::{self, UART1};
+use sabrelite_bsp::pac::uart1::{self, UART1};
 
 /// Expected badge value on IRQ notifications
 pub type IrqBadgeBits = uart1::Irq;

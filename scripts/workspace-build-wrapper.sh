@@ -13,6 +13,12 @@ if [ -z ${SEL4_PLATFORM+x} ]; then
 fi
 
 # build all packages in the right order, so binary packaging works as expected.
+echo "======================= building iomux ======================"
+cargo build -p iomux $@;
+
+echo "======================= building persistent-storage ======================"
+cargo build -p persistent-storage $@;
+
 echo "======================= building console ======================"
 cargo build -p console $@;
 

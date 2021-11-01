@@ -8,5 +8,13 @@ edition = "2021"
 embedded-hal = "0.2"
 nb = "0.1"
 
+[dependencies.log]
+version = "0.4"
+default-features = false
+
+[dependencies.num]
+version = "0.4"
+default-features = false
+
 [dependencies.imx6-devices]
 path = "../imx6-devices"

@@ -11,12 +11,19 @@ selfe-arc = { git = "https://github.com/auxoncorp/selfe-sys", default-features =
 ferros = { git = "https://github.com/auxoncorp/ferros" }
 typenum = "1.10"
 xmas-elf = "0.7"
+log = "0.4"
+
+[dependencies.iomux]
+path = "../drivers/iomux"
+
+[dependencies.persistent-storage]
+path = "../drivers/persistent-storage"
 
 [dependencies.console]
 path = "../applications/console"
 
-[dependencies.imx6-hal]
-path = "../imx6-hal"
+[dependencies.sabrelite-bsp]
+path = "../sabrelite-bsp"
 
 [build-dependencies]
 ferros-build = { git = "https://github.com/auxoncorp/ferros" }
