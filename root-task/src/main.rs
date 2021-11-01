@@ -287,8 +287,6 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             arch::vm_attributes::DEFAULT,
         )?;
         let params = console::ProcParams {
-            //spi: unsafe { pac::ecspi1::ECSPI1::from_vaddr(spi1_mem.vaddr() as _) },
-            //gpio3: unsafe { pac::gpio::GPIO3::from_vaddr(gpio3_mem.vaddr() as _) },
             uart: unsafe { pac::uart1::UART1::from_vaddr(uart1_mem.vaddr() as _) },
             int_consumer,
         };

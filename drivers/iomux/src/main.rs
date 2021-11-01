@@ -24,7 +24,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     params
         .responder
         .reply_recv(move |req| {
-            log::debug!("[iomux] Processing request {:?}", req);
+            log::trace!("[iomux] Processing request {:?}", req);
             match req {
                 Request::ConfigureEcSpi1 => {
                     log::trace!("[iomux] PAD_EIM_D17__ECSPI1_MISO");

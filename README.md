@@ -77,7 +77,7 @@ TRACE: [console] process started
 INFO: [console] run 'telnet 0.0.0.0 8888' to connect to the console interface
 TRACE: [persistent-storage] process started, storage vaddr=0x4F000 size=4096
 TRACE: [iomux] process started
-DEBUG: [iomux] Processing request ConfigureEcSpi1
+TRACE: [iomux] Processing request ConfigureEcSpi1
 TRACE: [iomux] PAD_EIM_D17__ECSPI1_MISO
 TRACE: [iomux] PAD_EIM_D18__ECSPI1_MOSI
 TRACE: [iomux] PAD_EIM_D16__ECSPI1_SCLK
