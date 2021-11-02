@@ -373,6 +373,9 @@ dependencies = [
  "sabrelite-bsp",
  "selfe-runtime",
  "selfe-sys",
+ "siphasher",
+ "static_assertions",
+ "tickv",
 ]
 
 [[package]]
@@ -522,6 +525,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 
 [[package]]
+name = "siphasher"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "533494a8f9b724d33625ab53c6c4800f7cc445895924a8ef649222dcb76e938b"
+
+[[package]]
 name = "smart_alloc"
 version = "0.1.0"
 source = "git+https://github.com/auxoncorp/ferros.git#e26f2bc99211a9ee54bc761f788337d35a8dfc80"
@@ -547,6 +556,11 @@ dependencies = [
  "quote 0.6.13",
  "unicode-xid 0.1.0",
 ]
+
+[[package]]
+name = "tickv"
+version = "0.1.0"
+source = "git+https://github.com/tock/tock.git?rev=772a9e68735025205a3da52a3a0c9fdee8b6148d#772a9e68735025205a3da52a3a0c9fdee8b6148d"
 
 [[package]]
 name = "toml"

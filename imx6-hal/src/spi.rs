@@ -89,12 +89,12 @@ impl spi::Transfer<u8> for Spi<ECSPI1> {
     fn transfer<'w>(&mut self, words: &'w mut [u8]) -> Result<&'w [u8], Self::Error> {
         let mut n_bytes = words.len();
         let n_bits = n_bytes * 8;
+        log::trace!("[ECSPI1] transfer len {} bit_len {}", n_bytes, n_bits);
 
         if n_bytes > FIFO_SIZE_BYTES {
+            log::error!("[ECSPI1] transfer would overflow the fifo");
             return Err(Error::TooMuchData);
         }
-
-        log::trace!("[ECSPI1] transfer len {} bit_len {}", n_bytes, n_bits);
 
         self.spi.ctl.modify(
             Control::Enable::Set + Control::BurstLength::Field::new((n_bits - 1) as u32).unwrap(),

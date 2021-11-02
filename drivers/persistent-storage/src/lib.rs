@@ -19,9 +19,13 @@ pub enum Response {
     Todo,
 }
 
-/// 4K buffer for persistent storage in flash
+/// 4K buffer for persistent storage in flash (1 sector)
 pub type StorageBufferSizeBits = U12;
 pub type StorageBufferSizeBytes = op! { U1 << StorageBufferSizeBits };
+
+/// 4K scratchpad buffer
+pub type ScratchpadBufferSizeBits = U12;
+pub type ScratchpadBufferSizeBytes = op! { U1 << ScratchpadBufferSizeBits };
 
 #[repr(C)]
 pub struct ProcParams<Role: CNodeRole> {
@@ -29,6 +33,7 @@ pub struct ProcParams<Role: CNodeRole> {
     pub gpio3: GPIO3,
     pub iomux_caller: Caller<iomux::Request, iomux::Response, Role>,
     pub storage_buffer: MappedMemoryRegion<StorageBufferSizeBits, shared_status::Exclusive>,
+    pub scratchpad_buffer: MappedMemoryRegion<ScratchpadBufferSizeBits, shared_status::Exclusive>,
     // TODO responder for persistent key/val stuff
 }
 

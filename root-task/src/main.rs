@@ -182,9 +182,21 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             persistent_storage::StorageBufferSizeBits,
             _,
         > = UnmappedMemoryRegion::new(ut, slots)?;
-        let (mem_slots, _proc_slots) = proc_slots.alloc();
+        let (mem_slots, proc_slots) = proc_slots.alloc();
         let storage_buffer = pstorage_vspace.map_region_and_move(
             storage_buffer_unmapped,
+            CapRights::RW,
+            arch::vm_attributes::DEFAULT,
+            &root_cnode,
+            mem_slots,
+        )?;
+        let scratchpad_buffer_unmapped: UnmappedMemoryRegion<
+            persistent_storage::ScratchpadBufferSizeBits,
+            _,
+        > = UnmappedMemoryRegion::new(ut, slots)?;
+        let (mem_slots, _proc_slots) = proc_slots.alloc();
+        let scratchpad_buffer = pstorage_vspace.map_region_and_move(
+            scratchpad_buffer_unmapped,
             CapRights::RW,
             arch::vm_attributes::DEFAULT,
             &root_cnode,
@@ -225,6 +237,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             gpio3: unsafe { pac::gpio::GPIO3::from_vaddr(gpio3_mem.vaddr() as _) },
             iomux_caller,
             storage_buffer,
+            scratchpad_buffer,
         };
         let stack_mem: UnmappedMemoryRegion<
             <resources::PersistentStorage as ElfProc>::StackSizeBits,

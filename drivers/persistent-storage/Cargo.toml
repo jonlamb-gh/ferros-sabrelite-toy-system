@@ -9,9 +9,19 @@ selfe-sys = { git = "https://github.com/auxoncorp/selfe-sys" }
 selfe-runtime = { git = "https://github.com/auxoncorp/selfe-sys", features = ["panic_handler"] }
 ferros = { git = "https://github.com/auxoncorp/ferros.git" }
 log = "0.4"
+static_assertions = "1.1"
 
 [dependencies.iomux]
 path = "../iomux"
 
 [dependencies.sabrelite-bsp]
 path = "../../sabrelite-bsp"
+
+[dependencies.tickv]
+git = "https://github.com/tock/tock.git"
+rev = "772a9e68735025205a3da52a3a0c9fdee8b6148d"
+
+[dependencies.siphasher]
+version = "0.3"
+features = []
+default-features = false

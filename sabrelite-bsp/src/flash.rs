@@ -122,6 +122,7 @@ impl Flash {
             0xFF,
         ];
         log::trace!("[flash] ReadFast {} bytes from 0x{:X}", buf.len(), addr);
+        self.spi.reset();
         self.cs.set_low().map_err(|_| Error::Gpio)?;
         let mut spi_result = self.spi.transfer(&mut cmd);
         if spi_result.is_ok() {
@@ -155,6 +156,7 @@ impl Flash {
             (addr >> 8) as u8,
             addr as u8,
         ];
+        self.spi.reset();
         self.cs.set_low().map_err(|_| Error::Gpio)?;
         let mut spi_result = self.spi.transfer(&mut cmd);
         if spi_result.is_ok() {
@@ -168,8 +170,8 @@ impl Flash {
     }
 
     fn command(&mut self, cmd: &mut [u8], data: &mut [u8]) -> Result<(), Error> {
-        self.cs.set_low().map_err(|_| Error::Gpio)?;
         self.spi.reset();
+        self.cs.set_low().map_err(|_| Error::Gpio)?;
         self.spi.transfer(cmd).map_err(|_| Error::Spi)?;
         if !data.is_empty() {
             self.spi.transfer(data).map_err(|_| Error::Spi)?;
