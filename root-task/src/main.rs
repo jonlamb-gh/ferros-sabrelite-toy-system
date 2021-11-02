@@ -33,8 +33,8 @@ fn main() {
 }
 
 fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelError> {
-    log::set_logger(&LOGGER).map(|()| log::set_max_level(log::LevelFilter::Trace))?;
-    log::trace!("[root-task] Initializing");
+    log::set_logger(&LOGGER).map(|()| log::set_max_level(DebugLogger::max_log_level_from_env()))?;
+    log::debug!("[root-task] Initializing");
 
     let (allocator, mut dev_allocator) = micro_alloc::bootstrap_allocators(raw_bootinfo)?;
     let mut allocator = WUTBuddy::from(allocator);
@@ -68,17 +68,17 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
 
     let archive = selfe_arc::read::Archive::from_slice(archive_slice);
     let iomux_elf_data = archive.file(resources::Iomux::IMAGE_NAME)?;
-    log::trace!(
+    log::debug!(
         "[root-task] Found iomux ELF data size={}",
         iomux_elf_data.len()
     );
     let pstorage_elf_data = archive.file(resources::PersistentStorage::IMAGE_NAME)?;
-    log::trace!(
+    log::debug!(
         "[root-task] Found persistent-storage ELF data size={}",
         pstorage_elf_data.len()
     );
     let console_elf_data = archive.file(resources::Console::IMAGE_NAME)?;
-    log::trace!(
+    log::debug!(
         "[root-task] Found console ELF data size={}",
         console_elf_data.len()
     );
@@ -97,7 +97,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         // drivers/iomux setup
         //
 
-        log::trace!("[root-task] Setting up iomux driver");
+        log::debug!("[root-task] Setting up iomux driver");
 
         let (asid, asid_pool) = asid_pool.alloc();
         let vspace_slots: LocalCNodeSlots<U16> = slots;
@@ -158,7 +158,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         // drivers/persistent-storage setup
         //
 
-        log::trace!("[root-task] Setting up persistent-storage driver");
+        log::debug!("[root-task] Setting up persistent-storage driver");
 
         let (asid, asid_pool) = asid_pool.alloc();
         let vspace_slots: LocalCNodeSlots<U16> = slots;
@@ -263,7 +263,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         // applications/console setup
         //
 
-        log::trace!("[root-task] Setting up console application");
+        log::debug!("[root-task] Setting up console application");
 
         let (asid, _asid_pool) = asid_pool.alloc();
         let vspace_slots: LocalCNodeSlots<U16> = slots;

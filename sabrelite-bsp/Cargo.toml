@@ -3,6 +3,7 @@ name = "sabrelite-bsp"
 version = "0.1.0"
 authors = ["Jon Lamb"]
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 ferros = { git = "https://github.com/auxoncorp/ferros.git" }

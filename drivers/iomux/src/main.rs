@@ -14,17 +14,17 @@ static LOGGER: DebugLogger = DebugLogger;
 #[no_mangle]
 pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     log::set_logger(&LOGGER)
-        .map(|()| log::set_max_level(log::LevelFilter::Trace))
+        .map(|()| log::set_max_level(DebugLogger::max_log_level_from_env()))
         .unwrap();
 
-    log::trace!("[iomux] process started");
+    log::debug!("[iomux] process started");
 
     let mut iomuxc = params.iomuxc;
 
     params
         .responder
         .reply_recv(move |req| {
-            log::trace!("[iomux] Processing request {:?}", req);
+            log::debug!("[iomux] Processing request {:?}", req);
             match req {
                 Request::ConfigureEcSpi1 => {
                     log::trace!("[iomux] PAD_EIM_D17__ECSPI1_MISO");

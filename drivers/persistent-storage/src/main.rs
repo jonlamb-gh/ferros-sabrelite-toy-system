@@ -28,18 +28,18 @@ const_assert_eq!(StorageBufferSizeBytes::USIZE, ERASE_SIZE_BYTES);
 #[no_mangle]
 pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     log::set_logger(&LOGGER)
-        .map(|()| log::set_max_level(log::LevelFilter::Trace))
+        .map(|()| log::set_max_level(DebugLogger::max_log_level_from_env()))
         .unwrap();
 
-    log::trace!("[persistent-storage] process started",);
+    log::debug!("[persistent-storage] process started",);
 
-    log::trace!(
+    log::debug!(
         "[persistent-storage] storage vaddr=0x{:X} size={}",
         params.storage_buffer.vaddr(),
         params.storage_buffer.size_bytes()
     );
 
-    log::trace!(
+    log::debug!(
         "[persistent-storage] scratchpad vaddr=0x{:X} size={}",
         params.scratchpad_buffer.vaddr(),
         params.scratchpad_buffer.size_bytes()
@@ -60,7 +60,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
         .iomux_caller
         .blocking_call(&iomux::Request::ConfigureEcSpi1)
         .unwrap();
-    log::trace!("[persistent-storage] Configured ECSPI1 IO resp={:?}", resp);
+    log::debug!("[persistent-storage] Configured ECSPI1 IO resp={:?}", resp);
 
     let gpio = params.gpio3.split();
     let spi_nor_cs_pin = gpio.bank3.p3_19.into_push_pull_output();

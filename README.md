@@ -30,6 +30,8 @@ cargo install --git https://github.com/auxoncorp/selfe-sys selfe-config --bin se
 
 ### Buidling
 
+Log level can be set at build-time with the `RUST_ENV` environment variable (`off`, `error`, `warn`, `info`, `debug`, `trace`).
+
 ```bash
 ./scripts/build.sh
 ```
@@ -66,32 +68,21 @@ Booting all finished, dropped to user space
 
 Bootstrapping kernel
 Booting all finished, dropped to user space
-TRACE: [root-task] Initializing
-TRACE: [root-task] Found iomux ELF data size=2769676
-TRACE: [root-task] Found persistent-storage ELF data size=2999236
-TRACE: [root-task] Found console ELF data size=2895828
-TRACE: [root-task] Setting up iomux driver
-TRACE: [root-task] Setting up persistent-storage driver
-TRACE: [root-task] Setting up console application
-TRACE: [console] process started
+DEBUG: [root-task] Initializing
+DEBUG: [root-task] Found iomux ELF data size=2770112
+DEBUG: [root-task] Found persistent-storage ELF data size=3237680
+DEBUG: [root-task] Found console ELF data size=2896268
+DEBUG: [root-task] Setting up iomux driver
+DEBUG: [root-task] Setting up persistent-storage driver
+DEBUG: [root-task] Setting up console application
+DEBUG: [console] process started
 INFO: [console] run 'telnet 0.0.0.0 8888' to connect to the console interface
-TRACE: [persistent-storage] process started, storage vaddr=0x4F000 size=4096
-TRACE: [iomux] process started
-TRACE: [iomux] Processing request ConfigureEcSpi1
-TRACE: [iomux] PAD_EIM_D17__ECSPI1_MISO
-TRACE: [iomux] PAD_EIM_D18__ECSPI1_MOSI
-TRACE: [iomux] PAD_EIM_D16__ECSPI1_SCLK
-TRACE: [iomux] PAD_EIM_D19__GPIO3_IO19
-TRACE: [persistent-storage] Configured ECSPI1 IO resp=EcSpi1Configured
-TRACE: [ECSPI1] init
-TRACE: [ECSPI1] ctl=0x20F1, cfg=0x0000, period=0x8000
-TRACE: [ECSPI1] ctl=0x20F1, cfg=0x0000, period=0x8000
-TRACE: [ECSPI1] transfer len 1 bit_len 8
-TRACE: [ECSPI1] transfer len 1 bit_len 8
-TRACE: [ECSPI1] ctl=0x20F1, cfg=0x0000, period=0x8000
-TRACE: [ECSPI1] transfer len 1 bit_len 8
-TRACE: [ECSPI1] transfer len 6 bit_len 48
-TRACE: [flash] init status=(empty) MFR=0xBF ID=0x2541
+DEBUG: [persistent-storage] process started
+DEBUG: [persistent-storage] storage vaddr=0x61000 size=4096
+DEBUG: [persistent-storage] scratchpad vaddr=0x62000 size=4096
+DEBUG: [iomux] process started
+DEBUG: [iomux] Processing request ConfigureEcSpi1
+DEBUG: [persistent-storage] Configured ECSPI1 IO resp=EcSpi1Configured
 ```
 
 Telnet to get at the console:

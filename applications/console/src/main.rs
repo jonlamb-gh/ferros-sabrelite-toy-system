@@ -19,10 +19,10 @@ static LOGGER: DebugLogger = DebugLogger;
 #[no_mangle]
 pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     log::set_logger(&LOGGER)
-        .map(|()| log::set_max_level(log::LevelFilter::Trace))
+        .map(|()| log::set_max_level(DebugLogger::max_log_level_from_env()))
         .unwrap();
 
-    log::trace!("[console] process started");
+    log::debug!("[console] process started");
 
     let serial = Serial::new(params.uart);
     let mut buffer = [0_u8; 64];
