@@ -13,8 +13,6 @@ use sabrelite_bsp::imx6_hal::serial::Serial;
 
 static LOGGER: DebugLogger = DebugLogger;
 
-// TODO - hook up commands to other procs (net, fs, etc)
-
 #[allow(improper_ctypes_definitions)]
 #[no_mangle]
 pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
@@ -83,7 +81,7 @@ It contains multiple paragraphs and should be preceeded by the parameter list.
         },
         &Item {
             item_type: ItemType::Menu(&Menu {
-                label: "sub",
+                label: "storage",
                 items: &[
                     &Item {
                         item_type: ItemType::Callback {
@@ -105,7 +103,7 @@ It contains multiple paragraphs and should be preceeded by the parameter list.
                 entry: Some(enter_sub),
                 exit: Some(exit_sub),
             }),
-            command: "sub",
+            command: "storage",
             help: Some("enter sub-menu"),
         },
     ],

@@ -177,6 +177,8 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         )?;
         let (proc_cnode, proc_slots) = retype_cnode::<U12>(ut, slots)?;
         let (ipc_slots, proc_slots) = proc_slots.alloc();
+        let (pstorage_ipc_setup, responder) = call_channel(ut, &root_cnode, slots, ipc_slots)?;
+        let (ipc_slots, proc_slots) = proc_slots.alloc();
         let iomux_caller = iomux_ipc_setup.create_caller(ipc_slots)?;
         let storage_buffer_unmapped: UnmappedMemoryRegion<
             persistent_storage::StorageBufferSizeBits,
@@ -236,6 +238,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             spi: unsafe { pac::ecspi1::ECSPI1::from_vaddr(spi1_mem.vaddr() as _) },
             gpio3: unsafe { pac::gpio::GPIO3::from_vaddr(gpio3_mem.vaddr() as _) },
             iomux_caller,
+            responder,
             storage_buffer,
             scratchpad_buffer,
         };
@@ -281,6 +284,8 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             &mut scratch,
         )?;
         let (proc_cnode, proc_slots) = retype_cnode::<U12>(ut, slots)?;
+        let (ipc_slots, proc_slots) = proc_slots.alloc();
+        let storage_caller = pstorage_ipc_setup.create_caller(ipc_slots)?;
         let (slots_c, _proc_slots) = proc_slots.alloc();
         let (int_consumer, _int_consumer_token) =
             InterruptConsumer::new(ut, &mut irq_control, &root_cnode, slots, slots_c)?;
@@ -301,6 +306,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         )?;
         let params = console::ProcParams {
             uart: unsafe { pac::uart1::UART1::from_vaddr(uart1_mem.vaddr() as _) },
+            storage_caller,
             int_consumer,
         };
         let stack_mem: UnmappedMemoryRegion<<resources::Console as ElfProc>::StackSizeBits, _> =

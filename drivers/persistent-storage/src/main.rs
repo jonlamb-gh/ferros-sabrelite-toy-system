@@ -6,8 +6,9 @@ use selfe_runtime as _;
 use crate::flash_controller::SpiNorFlashController;
 use core::convert::TryInto;
 use core::hash::{Hash, Hasher};
+use core::str;
 use ferros::cap::role;
-use persistent_storage::{ProcParams, Request, Response, StorageBufferSizeBytes};
+use persistent_storage::{ProcParams, Request, Response, StorageBufferSizeBytes, Value};
 use sabrelite_bsp::imx6_hal::{gpio::GpioExt, spi::Spi};
 use sabrelite_bsp::{
     debug_logger::DebugLogger,
@@ -16,7 +17,7 @@ use sabrelite_bsp::{
 };
 use siphasher::sip::SipHasher;
 use static_assertions::const_assert_eq;
-use tickv::{TicKV, MAIN_KEY};
+use tickv::{ErrorCode, TicKV, MAIN_KEY};
 
 mod flash_controller;
 
@@ -79,16 +80,44 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     MAIN_KEY.hash(&mut hasher);
     tickv.initalise(hasher.finish()).unwrap();
 
-    // Add a key
-    let value: [u8; 32] = [0x23; 32];
-    tickv.append_key(get_hashed_key(b"ONE"), &value).unwrap();
+    params
+        .responder
+        .reply_recv(move |req| {
+            log::debug!("[persistent-storage] Processing request {:?}", req);
+            let resp = match req {
+                Request::AppendKey(key, value) => {
+                    let key_hash = get_hashed_key(key.as_bytes());
+                    tickv
+                        .append_key(key_hash, value.as_bytes())
+                        .map(Response::KeyAppended)
+                }
+                Request::Get(key) => {
+                    let mut val = Value::new();
+                    let key_hash = get_hashed_key(key.as_bytes());
+                    match tickv.get_key(key_hash, unsafe { val.as_mut_vec() }.as_mut()) {
+                        Ok(_sc) => {
+                            // Make sure it's UTF-8
+                            if str::from_utf8(val.as_bytes()).is_err() {
+                                Err(ErrorCode::CorruptData)
+                            } else {
+                                Ok(Response::Value(val))
+                            }
+                        }
+                        Err(ec) => Err(ec),
+                    }
+                }
+                Request::InvalidateKey(key) => {
+                    let key_hash = get_hashed_key(key.as_bytes());
+                    tickv.invalidate_key(key_hash).map(Response::KeyInvalidated)
+                }
+                Request::GarbageCollect => tickv.garbage_collect().map(Response::GarbageCollected),
+            };
+            log::debug!("[persistent-storage] Response {:?}", resp);
+            resp
+        })
+        .expect("Could not set up a reply_recv")
+        .expect("Failure on reply_recv");
 
-    // Get the same key back
-    let mut buf: [u8; 32] = [0; 32];
-    tickv.get_key(get_hashed_key(b"ONE"), &mut buf).unwrap();
-    log::debug!("---> {:X?}", buf);
-
-    // TODO
     unsafe {
         loop {
             selfe_sys::seL4_Yield();
