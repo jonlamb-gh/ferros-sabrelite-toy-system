@@ -4,11 +4,12 @@
 use selfe_runtime as _;
 
 use console::ProcParams;
-use core::fmt::Write as WriteFmt;
-use ferros::cap::role;
+use core::fmt::{self, Write as WriteFmt};
+use ferros::{cap::role, userland::Caller};
 use menu::*;
 use sabrelite_bsp::debug_logger::DebugLogger;
 use sabrelite_bsp::embedded_hal::serial::Read;
+use sabrelite_bsp::imx6_hal::pac::uart1::UART1;
 use sabrelite_bsp::imx6_hal::serial::Serial;
 
 static LOGGER: DebugLogger = DebugLogger;
@@ -22,158 +23,235 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
 
     log::debug!("[console] process started");
 
+    let int_consumer = params.int_consumer;
     let serial = Serial::new(params.uart);
-    let mut buffer = [0_u8; 64];
-    let state = Runner::new(&ROOT_MENU, &mut buffer, serial);
+    let context = Context {
+        serial,
+        storage_caller: params.storage_caller,
+    };
+
+    // Console buffer on the stack
+    let mut buffer = [0_u8; 128];
+    let state = Runner::new(&ROOT_MENU, &mut buffer, context);
 
     log::info!("[console] run 'telnet 0.0.0.0 8888' to connect to the console interface");
-    params.int_consumer.consume(state, move |mut state| {
-        if let Ok(b) = state.context.read() {
+    int_consumer.consume(state, move |mut state| {
+        if let Ok(b) = state.context.serial.read() {
             state.input_byte(b);
         }
         state
     })
 }
 
-type Output = Serial<sabrelite_bsp::imx6_hal::pac::uart1::UART1>;
+pub struct Context {
+    serial: Serial<UART1>,
+    storage_caller: Caller<
+        persistent_storage::Request,
+        Result<persistent_storage::Response, persistent_storage::ErrorCode>,
+        role::Local,
+    >,
+}
 
-const ROOT_MENU: Menu<Output> = Menu {
+impl fmt::Write for Context {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.serial.write_str(s)
+    }
+}
+
+const ROOT_MENU: Menu<Context> = Menu {
     label: "root",
-    items: &[
-        &Item {
-            item_type: ItemType::Callback {
-                function: select_foo,
-                parameters: &[
-                    Parameter::Mandatory {
-                        parameter_name: "a",
-                        help: Some("This is the help text for 'a'"),
+    items: &[&Item {
+        command: "storage",
+        help: Some("Enter the persistent storage sub-menu."),
+        item_type: ItemType::Menu(&Menu {
+            label: "storage",
+            items: &[
+                &Item {
+                    command: "append",
+                    help: Some(storage::append::HELP),
+                    item_type: ItemType::Callback {
+                        function: storage::append::cmd,
+                        parameters: &[
+                            Parameter::Mandatory {
+                                parameter_name: "key",
+                                help: Some("The entry's key string"),
+                            },
+                            Parameter::Mandatory {
+                                parameter_name: "value",
+                                help: Some("The entry's value string"),
+                            },
+                        ],
                     },
-                    Parameter::Optional {
-                        parameter_name: "b",
-                        help: None,
+                },
+                &Item {
+                    command: "get",
+                    help: Some(storage::get::HELP),
+                    item_type: ItemType::Callback {
+                        function: storage::get::cmd,
+                        parameters: &[Parameter::Mandatory {
+                            parameter_name: "key",
+                            help: Some("The entry's key string"),
+                        }],
                     },
-                    Parameter::Named {
-                        parameter_name: "verbose",
-                        help: None,
+                },
+                &Item {
+                    command: "invalidate",
+                    help: Some(storage::invalidate::HELP),
+                    item_type: ItemType::Callback {
+                        function: storage::invalidate::cmd,
+                        parameters: &[Parameter::Mandatory {
+                            parameter_name: "key",
+                            help: Some("The entry's key string"),
+                        }],
                     },
-                    Parameter::NamedValue {
-                        parameter_name: "level",
-                        argument_name: "INT",
-                        help: Some("Set the level of the dangle"),
+                },
+                &Item {
+                    command: "gc",
+                    help: Some(storage::gc::HELP),
+                    item_type: ItemType::Callback {
+                        function: storage::gc::cmd,
+                        parameters: &[],
                     },
-                ],
-            },
-            command: "foo",
-            help: Some(
-                "Makes a foo appear.
-This is some extensive help text.
-It contains multiple paragraphs and should be preceeded by the parameter list.
-",
-            ),
-        },
-        &Item {
-            item_type: ItemType::Callback {
-                function: select_bar,
-                parameters: &[],
-            },
-            command: "bar",
-            help: Some("fandoggles a bar"),
-        },
-        &Item {
-            item_type: ItemType::Menu(&Menu {
-                label: "storage",
-                items: &[
-                    &Item {
-                        item_type: ItemType::Callback {
-                            function: select_baz,
-                            parameters: &[],
-                        },
-                        command: "baz",
-                        help: Some("thingamobob a baz"),
-                    },
-                    &Item {
-                        item_type: ItemType::Callback {
-                            function: select_quux,
-                            parameters: &[],
-                        },
-                        command: "quux",
-                        help: Some("maximum quux"),
-                    },
-                ],
-                entry: Some(enter_sub),
-                exit: Some(exit_sub),
-            }),
-            command: "storage",
-            help: Some("enter sub-menu"),
-        },
-    ],
-    entry: Some(enter_root),
-    exit: Some(exit_root),
+                },
+            ],
+            entry: None,
+            exit: None,
+        }),
+    }],
+    entry: Some(enter_root_menu),
+    exit: None,
 };
 
-fn enter_root(_menu: &Menu<Output>, context: &mut Output) {
-    writeln!(context, "In enter_root").unwrap();
+// NOTE: you won't see this in QEMU emulation unless you remove
+// the 'nowait' parameter from the QEMU invocation
+// in scripts/simulate.sh
+fn enter_root_menu(_menu: &Menu<Context>, context: &mut Context) {
+    writeln!(context, "\n\n").unwrap();
+    writeln!(context, "***************************").unwrap();
+    writeln!(context, "* Welcome to the console! *").unwrap();
+    writeln!(context, "***************************").unwrap();
 }
 
-fn exit_root(_menu: &Menu<Output>, context: &mut Output) {
-    writeln!(context, "In exit_root").unwrap();
-}
+mod storage {
+    use super::*;
+    use persistent_storage::{ErrorCode, Key, Request, Response, Value};
 
-fn select_foo<'a>(_menu: &Menu<Output>, item: &Item<Output>, args: &[&str], context: &mut Output) {
-    writeln!(context, "In select_foo. Args = {:?}", args).unwrap();
-    writeln!(
-        context,
-        "a = {:?}",
-        ::menu::argument_finder(item, args, "a")
-    )
-    .unwrap();
-    writeln!(
-        context,
-        "b = {:?}",
-        ::menu::argument_finder(item, args, "b")
-    )
-    .unwrap();
-    writeln!(
-        context,
-        "verbose = {:?}",
-        ::menu::argument_finder(item, args, "verbose")
-    )
-    .unwrap();
-    writeln!(
-        context,
-        "level = {:?}",
-        ::menu::argument_finder(item, args, "level")
-    )
-    .unwrap();
-    writeln!(
-        context,
-        "no_such_arg = {:?}",
-        ::menu::argument_finder(item, args, "no_such_arg")
-    )
-    .unwrap();
-}
+    fn print_resp(context: &mut Context, resp: &Result<Response, ErrorCode>) {
+        if let Ok(r) = resp {
+            writeln!(context.serial, "{}", r).unwrap();
+        } else {
+            writeln!(context.serial, "{:?}", resp).unwrap();
+        }
+    }
 
-fn select_bar<'a>(_menu: &Menu<Output>, _item: &Item<Output>, args: &[&str], context: &mut Output) {
-    writeln!(context, "In select_bar. Args = {:?}", args).unwrap();
-}
+    pub mod append {
+        use super::*;
 
-fn enter_sub(_menu: &Menu<Output>, context: &mut Output) {
-    writeln!(context, "In enter_sub").unwrap();
-}
+        pub const HELP: &str = "Appends the key/value pair to storage.
 
-fn exit_sub(_menu: &Menu<Output>, context: &mut Output) {
-    writeln!(context, "In exit_sub").unwrap();
-}
+  Example:
+  append my-key my-data";
 
-fn select_baz<'a>(_menu: &Menu<Output>, _item: &Item<Output>, args: &[&str], context: &mut Output) {
-    writeln!(context, "In select_baz: Args = {:?}", args).unwrap();
-}
+        pub fn cmd(
+            _menu: &Menu<Context>,
+            item: &Item<Context>,
+            args: &[&str],
+            context: &mut Context,
+        ) {
+            let key = Key::from(menu::argument_finder(item, args, "key").unwrap().unwrap());
+            let value = Value::from(menu::argument_finder(item, args, "value").unwrap().unwrap());
 
-fn select_quux<'a>(
-    _menu: &Menu<Output>,
-    _item: &Item<Output>,
-    args: &[&str],
-    context: &mut Output,
-) {
-    writeln!(context, "In select_quux: Args = {:?}", args).unwrap();
+            log::debug!(
+                "[console] Append storage item key='{}' value='{}'",
+                key,
+                value
+            );
+
+            let resp = context
+                .storage_caller
+                .blocking_call(&Request::AppendKey(key, value))
+                .expect("Failed to perform a blocking_call");
+
+            print_resp(context, &resp);
+        }
+    }
+
+    pub mod get {
+        use super::*;
+
+        pub const HELP: &str = "Retrieves the value for the given key from storage.
+
+  Example:
+  get my-key";
+
+        pub fn cmd(
+            _menu: &Menu<Context>,
+            item: &Item<Context>,
+            args: &[&str],
+            context: &mut Context,
+        ) {
+            let key = Key::from(menu::argument_finder(item, args, "key").unwrap().unwrap());
+
+            log::debug!("[console] Get storage value for key='{}'", key);
+
+            let resp = context
+                .storage_caller
+                .blocking_call(&Request::Get(key))
+                .expect("Failed to perform a blocking_call");
+
+            print_resp(context, &resp);
+        }
+    }
+
+    pub mod invalidate {
+        use super::*;
+
+        pub const HELP: &str = "Invalidates the key in storage.
+
+  Example:
+  invalidate my-key";
+
+        pub fn cmd(
+            _menu: &Menu<Context>,
+            item: &Item<Context>,
+            args: &[&str],
+            context: &mut Context,
+        ) {
+            let key = Key::from(menu::argument_finder(item, args, "key").unwrap().unwrap());
+
+            log::debug!("[console] Invalidate storage key='{}'", key);
+
+            let resp = context
+                .storage_caller
+                .blocking_call(&Request::InvalidateKey(key))
+                .expect("Failed to perform a blocking_call");
+
+            print_resp(context, &resp);
+        }
+    }
+
+    pub mod gc {
+        use super::*;
+
+        pub const HELP: &str = "Perform a garbage collection on storage.
+
+  Example:
+  gc";
+
+        pub fn cmd(
+            _menu: &Menu<Context>,
+            _item: &Item<Context>,
+            _args: &[&str],
+            context: &mut Context,
+        ) {
+            log::debug!("[console] Garbage collect storage");
+
+            let resp = context
+                .storage_caller
+                .blocking_call(&Request::GarbageCollect)
+                .expect("Failed to perform a blocking_call");
+
+            print_resp(context, &resp);
+        }
+    }
 }

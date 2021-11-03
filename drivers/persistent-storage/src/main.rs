@@ -8,7 +8,9 @@ use core::convert::TryInto;
 use core::hash::{Hash, Hasher};
 use core::str;
 use ferros::cap::role;
-use persistent_storage::{ProcParams, Request, Response, StorageBufferSizeBytes, Value};
+use persistent_storage::{
+    ProcParams, Request, Response, StorageBufferSizeBytes, Value, MAX_VALUE_SIZE,
+};
 use sabrelite_bsp::imx6_hal::{gpio::GpioExt, spi::Spi};
 use sabrelite_bsp::{
     debug_logger::DebugLogger,
@@ -45,6 +47,9 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
         params.scratchpad_buffer.vaddr(),
         params.scratchpad_buffer.size_bytes()
     );
+
+    // Local storage for a Value on the stack
+    let mut value_buffer: [u8; MAX_VALUE_SIZE] = [0; MAX_VALUE_SIZE];
 
     // Scratchpad mem to deal with flash sub-page size writes (read-modify-write)
     let mut scratchpad_buffer = params.scratchpad_buffer;
@@ -83,7 +88,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     params
         .responder
         .reply_recv(move |req| {
-            log::debug!("[persistent-storage] Processing request {:?}", req);
+            log::debug!("[persistent-storage] Processing request {}", req);
             let resp = match req {
                 Request::AppendKey(key, value) => {
                     let key_hash = get_hashed_key(key.as_bytes());
@@ -92,15 +97,14 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
                         .map(Response::KeyAppended)
                 }
                 Request::Get(key) => {
-                    let mut val = Value::new();
                     let key_hash = get_hashed_key(key.as_bytes());
-                    match tickv.get_key(key_hash, unsafe { val.as_mut_vec() }.as_mut()) {
+                    match tickv.get_key(key_hash, &mut value_buffer) {
                         Ok(_sc) => {
                             // Make sure it's UTF-8
-                            if str::from_utf8(val.as_bytes()).is_err() {
-                                Err(ErrorCode::CorruptData)
+                            if let Ok(s) = str::from_utf8(&value_buffer) {
+                                Ok(Response::Value(Value::from(s)))
                             } else {
-                                Ok(Response::Value(val))
+                                Err(ErrorCode::CorruptData)
                             }
                         }
                         Err(ec) => Err(ec),
@@ -112,7 +116,11 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
                 }
                 Request::GarbageCollect => tickv.garbage_collect().map(Response::GarbageCollected),
             };
-            log::debug!("[persistent-storage] Response {:?}", resp);
+            if let Ok(r) = &resp {
+                log::debug!("[persistent-storage] Response {}", r);
+            } else {
+                log::debug!("[persistent-storage] Response {:?}", resp);
+            }
             resp
         })
         .expect("Could not set up a reply_recv")

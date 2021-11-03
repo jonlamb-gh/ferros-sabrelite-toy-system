@@ -1,5 +1,6 @@
 #![no_std]
 
+use core::fmt;
 use ferros::cap::{role, CNodeRole};
 use ferros::userland::{Caller, Responder, RetypeForSetup};
 use ferros::vspace::{shared_status, MappedMemoryRegion};
@@ -25,12 +26,34 @@ pub enum Request {
     GarbageCollect,
 }
 
+impl fmt::Display for Request {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Request::AppendKey(k, v) => write!(f, "AppendKey({}, {})", k.as_str(), v.as_str()),
+            Request::Get(k) => write!(f, "Get({})", k.as_str()),
+            Request::InvalidateKey(k) => write!(f, "InvalidateKey({})", k.as_str()),
+            Request::GarbageCollect => write!(f, "GarbageCollect"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Response {
     KeyAppended(SuccessCode),
     Value(Value),
     KeyInvalidated(SuccessCode),
     GarbageCollected(usize),
+}
+
+impl fmt::Display for Response {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Response::KeyAppended(sc) => write!(f, "KeyAppended({:?})", sc),
+            Response::Value(v) => write!(f, "Value({})", v.as_str()),
+            Response::KeyInvalidated(sc) => write!(f, "KeyInvalidated({:?})", sc),
+            Response::GarbageCollected(size) => write!(f, "GarbageCollected({} bytes freed)", size),
+        }
+    }
 }
 
 /// 4K buffer for persistent storage in flash (1 sector)

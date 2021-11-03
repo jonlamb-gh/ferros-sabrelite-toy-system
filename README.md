@@ -16,7 +16,7 @@
 # Add the extracted toolchain's bin directory to your PATH
 wget https://releases.linaro.org/components/toolchain/binaries/7.4-2019.02/arm-linux-gnueabihf/gcc-linaro-7.4.1-2019.02-i686_arm-linux-gnueabihf.tar.xz
 
-# Might need to manually install version 6.1.0
+# Might need to manually install version 6.1.0, you'll know if the ECSPI1 driver (or persistent-storage driver proc) hangs
 sudo apt install qemu-system-arm
 
 # Install seL4 python deps
@@ -65,21 +65,18 @@ Jumping to kernel-image entry point...
 
 Bootstrapping kernel
 Booting all finished, dropped to user space
-
-Bootstrapping kernel
-Booting all finished, dropped to user space
 DEBUG: [root-task] Initializing
 DEBUG: [root-task] Found iomux ELF data size=2770112
-DEBUG: [root-task] Found persistent-storage ELF data size=3237680
-DEBUG: [root-task] Found console ELF data size=2896268
+DEBUG: [root-task] Found persistent-storage ELF data size=3354480
+DEBUG: [root-task] Found console ELF data size=3330196
 DEBUG: [root-task] Setting up iomux driver
 DEBUG: [root-task] Setting up persistent-storage driver
 DEBUG: [root-task] Setting up console application
 DEBUG: [console] process started
 INFO: [console] run 'telnet 0.0.0.0 8888' to connect to the console interface
 DEBUG: [persistent-storage] process started
-DEBUG: [persistent-storage] storage vaddr=0x61000 size=4096
-DEBUG: [persistent-storage] scratchpad vaddr=0x62000 size=4096
+DEBUG: [persistent-storage] storage vaddr=0x66000 size=4096
+DEBUG: [persistent-storage] scratchpad vaddr=0x67000 size=4096
 DEBUG: [iomux] process started
 DEBUG: [iomux] Processing request ConfigureEcSpi1
 DEBUG: [persistent-storage] Configured ECSPI1 IO resp=EcSpi1Configured
@@ -88,11 +85,33 @@ DEBUG: [persistent-storage] Configured ECSPI1 IO resp=EcSpi1Configured
 Telnet to get at the console:
 ```bash
 telnet 0.0.0.0 8888
+```
+
+```bash
+***************************
+* Welcome to the console! *
+***************************
 
 > help
 AVAILABLE ITEMS:
-  foo <a> [ <b> ] [OPTIONS...]
-  bar
-  sub
+  storage
+  help [ <command> ]
+
+> help storage
+SUMMARY:
+  storage
+
+DESCRIPTION:
+Enter the persistent storage sub-menu.
+
+> storage
+
+/storage> help
+AVAILABLE ITEMS:
+  append <key> <value>
+  get <key>
+  invalidate <key>
+  gc
+  exit
   help [ <command> ]
 ```
