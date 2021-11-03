@@ -16,7 +16,7 @@
 # Add the extracted toolchain's bin directory to your PATH
 wget https://releases.linaro.org/components/toolchain/binaries/7.4-2019.02/arm-linux-gnueabihf/gcc-linaro-7.4.1-2019.02-i686_arm-linux-gnueabihf.tar.xz
 
-# Might need to manually install version 6.1.0, you'll know if the ECSPI1 driver (or persistent-storage driver proc) hangs
+# Might need to manually install version >=6.1.0, you'll know if the ECSPI1 driver (or persistent-storage driver proc) hangs
 sudo apt install qemu-system-arm
 
 # Install seL4 python deps
@@ -30,13 +30,18 @@ cargo install --git https://github.com/auxoncorp/selfe-sys selfe-config --bin se
 
 ### Buidling
 
-Log level can be set at build-time with the `RUST_ENV` environment variable (`off`, `error`, `warn`, `info`, `debug`, `trace`).
+Log level can be set at build-time with the `RUST_ENV` environment
+variable (`off`, `error`, `warn`, `info`, `debug`, `trace`).
+The default is `RUST_LOG=debug`.
 
 ```bash
 ./scripts/build.sh
 ```
 
 ### Simulating
+
+When using QEMU, the script [mkflsh.sh](scripts/mkflash.sh) setups up a binary file
+to back the flash storage (`target/flash/flash.bin`).
 
 ```bash
 ./scripts/simulate.sh
