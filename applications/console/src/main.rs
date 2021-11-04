@@ -34,6 +34,8 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     let mut buffer = [0_u8; 128];
     let state = Runner::new(&ROOT_MENU, &mut buffer, context);
 
+    // TODO - this info is only if running on QEMU, otherwise it's the UART1 serial
+    // port
     log::info!("[console] run 'telnet 0.0.0.0 8888' to connect to the console interface");
     int_consumer.consume(state, move |mut state| {
         if let Ok(b) = state.context.serial.read() {

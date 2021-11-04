@@ -1,10 +1,15 @@
 use core::cell::RefCell;
-use sabrelite_bsp::flash::{Flash, ERASE_SIZE_BYTES, PAGE_SIZE_BYTES};
+use sabrelite_bsp::flash::{Flash, ERASE_SIZE_BYTES, FLASH_SIZE_BYTES, PAGE_SIZE_BYTES};
+use static_assertions::const_assert_eq;
 use tickv::{ErrorCode, FlashController};
 
-// TODO - use a const offset to pick the last 4K page of flash for storage
+// TODO
 // put some checks in the linker script or somewhere to check the binary
-// doesn't run into it
+// doesn't run into the reserved region
+
+/// Reserve the last sector of flash for persistent storage
+const REGION_BASE_ADDR: usize = FLASH_SIZE_BYTES - ERASE_SIZE_BYTES;
+const_assert_eq!(REGION_BASE_ADDR & 0xFFF, 0);
 
 pub struct SpiNorFlashController<'a> {
     flash: RefCell<Flash>,
@@ -16,6 +21,10 @@ impl<'a> SpiNorFlashController<'a> {
         if scratchpad.len() < PAGE_SIZE_BYTES {
             Err(ErrorCode::BufferTooSmall(PAGE_SIZE_BYTES))
         } else {
+            log::trace!(
+                "[tickv] SpiNorFlashController base address=0x{:X}",
+                REGION_BASE_ADDR,
+            );
             Ok(SpiNorFlashController {
                 flash: RefCell::new(flash),
                 scratchpad: RefCell::new(scratchpad),
@@ -37,7 +46,7 @@ impl<'a> FlashController<ERASE_SIZE_BYTES> for SpiNorFlashController<'a> {
             offset
         );
         let mut flash = self.flash.borrow_mut();
-        let base_addr = region_number + offset;
+        let base_addr = REGION_BASE_ADDR + (region_number + offset);
         for (c, chunk) in buf.chunks_mut(PAGE_SIZE_BYTES).enumerate() {
             let addr = (base_addr + (c * PAGE_SIZE_BYTES)) as u32;
             flash.read(addr, chunk).map_err(|_| ErrorCode::ReadFail)?;
@@ -50,7 +59,7 @@ impl<'a> FlashController<ERASE_SIZE_BYTES> for SpiNorFlashController<'a> {
         let mut flash = self.flash.borrow_mut();
         let mut scratchpad = self.scratchpad.borrow_mut();
         for (c, chunk) in buf.chunks(PAGE_SIZE_BYTES).enumerate() {
-            let addr = (address + (c * PAGE_SIZE_BYTES)) as u32;
+            let addr = (REGION_BASE_ADDR + (address + (c * PAGE_SIZE_BYTES))) as u32;
             let len = chunk.len();
             if len < PAGE_SIZE_BYTES {
                 // TODO - check page-aligned address
@@ -74,7 +83,7 @@ impl<'a> FlashController<ERASE_SIZE_BYTES> for SpiNorFlashController<'a> {
         log::trace!("[tickv] erase region number={}", region_number);
         let mut flash = self.flash.borrow_mut();
         flash
-            .erase_sector(region_number as u32)
+            .erase_sector((REGION_BASE_ADDR + region_number) as u32)
             .map_err(|_| ErrorCode::EraseFail)?;
         Ok(())
     }
