@@ -12,13 +12,16 @@ use ferros::userland::*;
 use ferros::vspace::ElfProc;
 use ferros::vspace::*;
 use ferros::*;
-use net_types::{EthernetAddress, IpcEthernetFrame, MtuSize};
+use net_types::{EthernetAddress, IpcEthernetFrame, Ipv4Address, MtuSize};
 use sabrelite_bsp::{debug_logger::DebugLogger, pac};
 use typenum::*;
 
 /// 2^16 bytes in the L2 queues can buffer ~43 Ethernet frames
 type L2IpcQueuePageBits = U16;
 type L2IpcQueueDepth = op!(((U1 << L2IpcQueuePageBits) / MtuSize) - U1);
+
+const MAC_ADDRESS: EthernetAddress = EthernetAddress([0x00, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE]);
+const IP_ADDRESS: Ipv4Address = Ipv4Address([192, 0, 2, 80]);
 
 static LOGGER: DebugLogger = DebugLogger;
 
@@ -244,7 +247,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         )?;
 
         // tcpip <- enet L2 frame consumer
-        let (slots_c, _tcpip_slots) = tcpip_slots.alloc();
+        let (slots_c, tcpip_slots) = tcpip_slots.alloc();
         let (
             tcpip_eth_consumer,
             _tcpip_eth_consumer_token,
@@ -276,9 +279,22 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         // drivers/tcpip setup continued
         //
 
+        let socket_buffer_mem_unmapped: UnmappedMemoryRegion<tcpip::RxTxSocketBufferSizeBits, _> =
+            UnmappedMemoryRegion::new(ut, slots)?;
+        let (mem_slots, tcpip_slots) = tcpip_slots.alloc();
+        let socket_buffer_mem = tcpip_vspace.map_region_and_move(
+            socket_buffer_mem_unmapped,
+            CapRights::RW,
+            arch::vm_attributes::DEFAULT,
+            &root_cnode,
+            mem_slots,
+        )?;
         let params = tcpip::ProcParams {
             frame_consumer: tcpip_eth_consumer,
             frame_producer: tcpip_eth_producer,
+            socket_buffer_mem,
+            mac_addr: MAC_ADDRESS,
+            ip_addr: IP_ADDRESS,
         };
         let stack_mem: UnmappedMemoryRegion<<resources::TcpIp as ElfProc>::StackSizeBits, _> =
             UnmappedMemoryRegion::new(ut, slots).unwrap();
@@ -333,8 +349,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             consumer: enet_consumer,
             producer: enet_producer,
             dma_mem,
-            // TODO - map OTP device in root-task, read burned in MAC, use forged if all zeros
-            mac_addr: EthernetAddress([0x00, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE]),
+            mac_addr: MAC_ADDRESS,
         };
         let stack_mem: UnmappedMemoryRegion<<resources::Enet as ElfProc>::StackSizeBits, _> =
             UnmappedMemoryRegion::new(ut, slots).unwrap();

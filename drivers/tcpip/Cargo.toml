@@ -9,9 +9,25 @@ selfe-sys = { git = "https://github.com/auxoncorp/selfe-sys" }
 selfe-runtime = { git = "https://github.com/auxoncorp/selfe-sys", features = ["panic_handler"] }
 ferros = { git = "https://github.com/auxoncorp/ferros.git" }
 log = "0.4"
+static_assertions = "1.1"
+typenum = "1.10"
 
 [dependencies.net-types]
 path = "../../libraries/net-types"
 
 [dependencies.sabrelite-bsp]
 path = "../../sabrelite-bsp"
+
+[dependencies.smoltcp]
+version = "0.7"
+default-features = false
+features = [
+    "proto-ipv4",
+    "socket-icmp",
+    "proto-igmp",
+    "socket-udp",
+    "socket",
+    "ethernet",
+    #"verbose",
+    #"log",
+]

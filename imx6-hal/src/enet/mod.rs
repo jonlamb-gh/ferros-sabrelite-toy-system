@@ -47,6 +47,7 @@ pub enum Error {
     ExhaustedResource,
     NotEnoughDescriptors,
     DmaRingMemoryNotContiguous,
+    TransmitBufferTooBig,
     MemoryRegion(MemRegionError),
 }
 
@@ -324,9 +325,27 @@ impl Enet {
         F: FnMut(&[u8]),
     {
         if !self.rx_ring.is_next_entry_empty() {
+            // Enable Rx descriptor ring
+            self.enet.rdar.modify(RxDescActive::RxDescActive::Set);
             self.rx_ring.consume_and_increment(&mut f)
         } else {
             0
+        }
+    }
+
+    // NOTE: fire and forget, does not block until completion
+    pub fn transmit(&mut self, data: &[u8]) -> Result<(), Error> {
+        if data.len() > MtuSize::USIZE {
+            Err(Error::TransmitBufferTooBig)
+        } else {
+            while !self.tx_ring.is_next_entry_empty() {
+                asm::nop();
+            }
+            self.tx_ring.fill_and_increment(data);
+
+            // Enable Tx descriptor ring
+            self.enet.tdar.modify(TxDescActive::TxDescActive::Set);
+            Ok(())
         }
     }
 

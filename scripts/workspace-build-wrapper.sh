@@ -19,6 +19,9 @@ cargo build -p iomux $@;
 echo "======================= building enet ======================"
 cargo build -p enet $@;
 
+echo "======================= building tcpip ======================"
+cargo build -p tcpip $@;
+
 echo "======================= building persistent-storage ======================"
 cargo build -p persistent-storage $@;
 

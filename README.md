@@ -77,18 +77,25 @@ Jumping to kernel-image entry point...
 Bootstrapping kernel
 Booting all finished, dropped to user space
 DEBUG: [root-task] Initializing
-DEBUG: [root-task] Found iomux ELF data size=2770112
-DEBUG: [root-task] Found persistent-storage ELF data size=3354480
-DEBUG: [root-task] Found console ELF data size=3330196
+DEBUG: [root-task] Found iomux ELF data size=3080424
+DEBUG: [root-task] Found enet ELF data size=4714108
+DEBUG: [root-task] Found tcpip ELF data size=4088384
+DEBUG: [root-task] Found persistent-storage ELF data size=4771608
+DEBUG: [root-task] Found console ELF data size=4742192
 DEBUG: [root-task] Setting up iomux driver
+DEBUG: [root-task] Setting up tcpip driver
+DEBUG: [root-task] Setting up enet driver
 DEBUG: [root-task] Setting up persistent-storage driver
 DEBUG: [root-task] Setting up console application
-DEBUG: [console] process started
-INFO: [console] run 'telnet 0.0.0.0 8888' to connect to the console interface
-DEBUG: [persistent-storage] process started
+DEBUG: [console] Process started
+INFO: [console] Run 'telnet 0.0.0.0 8888' to connect to the console interface
+DEBUG: [persistent-storage] Process started
 DEBUG: [persistent-storage] storage vaddr=0x66000 size=4096
 DEBUG: [persistent-storage] scratchpad vaddr=0x67000 size=4096
-DEBUG: [iomux] process started
+DEBUG: [tcpip-driver] Process started
+DEBUG: [tcpip-driver] TCP/IP stack is up IP=192.0.2.80 MAC=00:AD:BE:EF:CA:FE
+DEBUG: [enet-driver] Process started
+DEBUG: [iomux] Process started
 DEBUG: [iomux] Processing request ConfigureEcSpi1
 DEBUG: [persistent-storage] Configured ECSPI1 IO resp=EcSpi1Configured
 ```
@@ -125,4 +132,14 @@ AVAILABLE ITEMS:
   gc
   exit
   help [ <command> ]
+```
+
+You can ping the IP stack (smoltcp):
+```bash
+ping -4 192.0.2.80
+
+PING 192.0.2.80 (192.0.2.80) 56(84) bytes of data.
+64 bytes from 192.0.2.80: icmp_seq=1 ttl=64 time=44.4 ms
+64 bytes from 192.0.2.80: icmp_seq=2 ttl=64 time=8.38 ms
+64 bytes from 192.0.2.80: icmp_seq=3 ttl=64 time=8.61 ms
 ```

@@ -2,15 +2,40 @@
 
 use ferros::cap::{role, CNodeRole};
 use ferros::userland::{Consumer1, Producer, RetypeForSetup};
-use net_types::IpcEthernetFrame;
+use ferros::vspace::{shared_status, MappedMemoryRegion};
+use net_types::{EthernetAddress, IpcEthernetFrame, Ipv4Address, MtuSize};
+use static_assertions::const_assert;
+use typenum::{op, Unsigned, U1, U12, U2};
+
+/// Rx/Tx socket buffer size, 4K each, ~2 MTU/frames
+pub type SocketBufferSizeBits = U12;
+pub type SocketBufferSize = op!(U1 << SocketBufferSizeBits);
+pub type RxTxSocketBufferSizeBits = op!(SocketBufferSizeBits + U1);
+pub type RxTxSocketBufferSize = op!(U1 << RxTxSocketBufferSizeBits);
+
+pub type MtuSize2x = op!(MtuSize * U2);
+const_assert!(SocketBufferSize::USIZE >= MtuSize2x::USIZE);
+pub type MtuSize4x = op!(MtuSize2x * U2);
+const_assert!(RxTxSocketBufferSize::USIZE >= MtuSize4x::USIZE);
 
 #[repr(C)]
 pub struct ProcParams<Role: CNodeRole> {
+    // TODO - timer w/IRQ
+    // IPC for L3/udp
     /// Consumer of Ethernet frames from a L2 driver
     pub frame_consumer: Consumer1<Role, IpcEthernetFrame>,
 
     /// Producer of Ethernet frames destined to a L2 driver
     pub frame_producer: Producer<Role, IpcEthernetFrame>,
+
+    /// Memory for the socket buffers, split in half for rx and tx by the driver
+    pub socket_buffer_mem: MappedMemoryRegion<RxTxSocketBufferSizeBits, shared_status::Exclusive>,
+
+    /// Hardware MAC address
+    pub mac_addr: EthernetAddress,
+
+    /// IPv4 address
+    pub ip_addr: Ipv4Address,
 }
 
 impl RetypeForSetup for ProcParams<role::Local> {

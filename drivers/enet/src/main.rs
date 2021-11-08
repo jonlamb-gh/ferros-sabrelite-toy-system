@@ -6,7 +6,7 @@ use selfe_runtime as _;
 use enet::ProcParams;
 use ferros::cap::role;
 use ferros::userland::Producer;
-use net_types::{EthernetAddress, IpcEthernetFrame};
+use net_types::IpcEthernetFrame;
 use sabrelite_bsp::debug_logger::DebugLogger;
 use sabrelite_bsp::imx6_hal::enet::{uncached_memory_region::UncachedMemoryRegion, Enet};
 use sabrelite_bsp::imx6_hal::pac::typenum::Unsigned;
@@ -94,7 +94,11 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
         |tx_frame, mut state| {
             // Transmit request queue
 
-            log::error!("[enet-driver] TODO tx path");
+            log::trace!("[enet-driver] Enqueue {}", tx_frame);
+
+            if let Err(e) = state.enet.transmit(tx_frame.as_slice()) {
+                log::warn!("[enet-driver] Failed to transmit IpcEthernetFrame {:?}", e);
+            }
 
             state
         },

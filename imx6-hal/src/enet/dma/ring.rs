@@ -107,4 +107,28 @@ impl<const N: usize> DmaRing<Tx, N> {
         last_desc.set_status(status | tx::Status::W);
         atomic::fence(atomic::Ordering::SeqCst);
     }
+
+    pub(crate) fn is_next_entry_empty(&self) -> bool {
+        let desc = unsafe { self.entries[self.next_entry].descriptor() };
+        let status = desc.status();
+        !status.contains(tx::Status::R)
+    }
+
+    // Note size checked by caller
+    pub(crate) fn fill_and_increment(&mut self, data: &[u8]) {
+        let len = data.len();
+        {
+            let pkt = unsafe { &mut self.entries[self.next_entry].packet_mut()[..len] };
+            pkt.copy_from_slice(data);
+        }
+        atomic::fence(atomic::Ordering::SeqCst);
+        let desc = unsafe { self.entries[self.next_entry].descriptor_mut() };
+        desc.set_length(len as _);
+        let status = desc.status();
+        desc.set_status(status | tx::Status::TC | tx::Status::L | tx::Status::R);
+        self.next_entry += 1;
+        if self.next_entry == N {
+            self.next_entry = 0;
+        }
+    }
 }

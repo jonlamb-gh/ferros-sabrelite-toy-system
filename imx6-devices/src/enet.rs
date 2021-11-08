@@ -65,6 +65,15 @@ register! {
 }
 
 register! {
+    TxDescActive,
+    u32,
+    RW,
+    Fields [
+        TxDescActive  WIDTH(U1) OFFSET(U24),
+    ]
+}
+
+register! {
     Control,
     u32,
     RW,
@@ -239,8 +248,8 @@ pub struct RegisterBlock {
     pub eir: InterruptEvent::Register,        // 0x004
     pub eimr: InterruptMask::Register,        // 0x008
     __reserved_1: [u32; 1],                   // 0x00C
-    pub rdar: Data::Register,                 // 0x010
-    pub tdar: Data::Register,                 // 0x014
+    pub rdar: RxDescActive::Register,         // 0x010
+    pub tdar: TxDescActive::Register,         // 0x014
     __reserved_2: [u32; 3],                   // 0x018
     pub ecr: Control::Register,               // 0x024
     __reserved_3: [u32; 6],                   // 0x028

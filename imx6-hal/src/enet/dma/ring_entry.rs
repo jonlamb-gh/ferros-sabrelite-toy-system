@@ -36,6 +36,10 @@ impl<RxTx: sealed::RxTx> RingEntry<RxTx> {
     pub(crate) unsafe fn packet(&self) -> &[u8] {
         self.pkt.as_slice::<u8>(self.pkt.size())
     }
+
+    pub(crate) unsafe fn packet_mut(&mut self) -> &mut [u8] {
+        self.pkt.as_mut_slice::<u8>(self.pkt.size())
+    }
 }
 
 impl RingEntry<Rx> {
@@ -88,6 +92,10 @@ impl RingEntry<Tx> {
         desc.set_address(self.pkt.paddr() as _);
 
         atomic::fence(atomic::Ordering::SeqCst);
+    }
+
+    pub(crate) unsafe fn descriptor(&self) -> &tx::Descriptor {
+        &*self.desc.as_ptr::<tx::Descriptor>()
     }
 
     pub(crate) unsafe fn descriptor_mut(&mut self) -> &mut tx::Descriptor {
