@@ -10,7 +10,6 @@ selfe simulate \
     --serial-override='-serial telnet:0.0.0.0:8888,server,nowait -serial mon:stdio' \
     -- \
     -smp 4 \
-    -drive if=mtd,file=target/flash/flash.bin,format=raw,id=spi,index=0,bus=0 \
-    -nic tap,mac=00:AD:BE:EF:CA:FE,ifname=qemu-net,script=no,downscript=no
+    -drive if=mtd,file=target/flash/flash.bin,format=raw,id=spi,index=0,bus=0
 
 exit 0

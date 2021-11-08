@@ -1,11 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
+    "libraries/net-types",
     "imx6-devices",
     "imx6-hal",
     "sabrelite-bsp",
     "drivers/iomux",
+    "drivers/enet",
     "drivers/persistent-storage",
+    "drivers/tcpip",
     "applications/console",
     "root-task",
 ]

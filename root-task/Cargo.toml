@@ -16,11 +16,20 @@ log = "0.4"
 [dependencies.iomux]
 path = "../drivers/iomux"
 
+[dependencies.enet]
+path = "../drivers/enet"
+
+[dependencies.tcpip]
+path = "../drivers/tcpip"
+
 [dependencies.persistent-storage]
 path = "../drivers/persistent-storage"
 
 [dependencies.console]
 path = "../applications/console"
+
+[dependencies.net-types]
+path = "../libraries/net-types"
 
 [dependencies.sabrelite-bsp]
 path = "../sabrelite-bsp"

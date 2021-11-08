@@ -12,8 +12,13 @@ use ferros::userland::*;
 use ferros::vspace::ElfProc;
 use ferros::vspace::*;
 use ferros::*;
+use net_types::{EthernetAddress, IpcEthernetFrame, MtuSize};
 use sabrelite_bsp::{debug_logger::DebugLogger, pac};
 use typenum::*;
+
+/// 2^16 bytes in the L2 queues can buffer ~43 Ethernet frames
+type L2IpcQueuePageBits = U16;
+type L2IpcQueueDepth = op!(((U1 << L2IpcQueuePageBits) / MtuSize) - U1);
 
 static LOGGER: DebugLogger = DebugLogger;
 
@@ -72,6 +77,16 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         "[root-task] Found iomux ELF data size={}",
         iomux_elf_data.len()
     );
+    let enet_elf_data = archive.file(resources::Enet::IMAGE_NAME)?;
+    log::debug!(
+        "[root-task] Found enet ELF data size={}",
+        enet_elf_data.len()
+    );
+    let tcpip_elf_data = archive.file(resources::TcpIp::IMAGE_NAME)?;
+    log::debug!(
+        "[root-task] Found tcpip ELF data size={}",
+        tcpip_elf_data.len()
+    );
     let pstorage_elf_data = archive.file(resources::PersistentStorage::IMAGE_NAME)?;
     log::debug!(
         "[root-task] Found persistent-storage ELF data size={}",
@@ -83,7 +98,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         console_elf_data.len()
     );
 
-    let uts = alloc::ut_buddy(allocator.alloc_strong::<U20>(&mut ut_slots)?);
+    let uts = alloc::ut_buddy(allocator.alloc_strong::<U27>(&mut ut_slots)?);
 
     smart_alloc!(|slots: local_slots, ut: uts| {
         let (asid_pool, _asid_control) = asid_control.allocate_asid_pool(ut, slots)?;
@@ -114,8 +129,8 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             &root_cnode,
             &mut scratch,
         )?;
-        let (proc_cnode, proc_slots) = retype_cnode::<U12>(ut, slots)?;
-        let (ipc_slots, _proc_slots) = proc_slots.alloc();
+        let (iomux_cnode, iomux_slots) = retype_cnode::<U12>(ut, slots)?;
+        let (ipc_slots, _iomux_slots) = iomux_slots.alloc();
         let (iomux_ipc_setup, responder) = call_channel(ut, &root_cnode, slots, ipc_slots)?;
         let iomuxc_ut = dev_allocator
             .get_untyped_by_address_range_slot_infallible(
@@ -142,10 +157,195 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             root_vspace.map_region(stack_mem, CapRights::RW, arch::vm_attributes::DEFAULT)?;
         let mut iomux_process = StandardProcess::new::<iomux::ProcParams<_>, _>(
             &mut iomux_vspace,
-            proc_cnode,
+            iomux_cnode,
             stack_mem,
             &root_cnode,
             iomux_elf_data,
+            params,
+            ut, // ipc_buffer_ut
+            ut, // tcb_ut
+            slots,
+            &tpa, // priority_authority
+            None, // fault
+        )?;
+
+        //
+        // drivers/tcpip setup
+        //
+
+        log::debug!("[root-task] Setting up tcpip driver");
+
+        let (asid, asid_pool) = asid_pool.alloc();
+        let vspace_slots: LocalCNodeSlots<ferros::arch::CodePageCount> = slots;
+        let vspace_ut: LocalCap<Untyped<U16>> = ut;
+        let mut tcpip_vspace = VSpace::new_from_elf::<resources::TcpIp>(
+            retype(ut, slots)?, // paging_root
+            asid,
+            vspace_slots.weaken(), // slots
+            vspace_ut.weaken(),    // paging_untyped
+            tcpip_elf_data,
+            slots, // page_slots
+            ut,    // elf_writable_mem
+            &user_image,
+            &root_cnode,
+            &mut scratch,
+        )?;
+        let (tcpip_cnode, tcpip_slots) = retype_cnode::<U12>(ut, slots)?;
+
+        //
+        // drivers/enet setup
+        //
+
+        log::debug!("[root-task] Setting up enet driver");
+
+        let (asid, asid_pool) = asid_pool.alloc();
+        let vspace_slots: LocalCNodeSlots<ferros::arch::CodePageCount> = slots;
+        let vspace_ut: LocalCap<Untyped<U16>> = ut;
+        let mut enet_vspace = VSpace::new_from_elf::<resources::Enet>(
+            retype(ut, slots)?, // paging_root
+            asid,
+            vspace_slots.weaken(), // slots
+            vspace_ut.weaken(),    // paging_untyped
+            enet_elf_data,
+            slots, // page_slots
+            ut,    // elf_writable_mem
+            &user_image,
+            &root_cnode,
+            &mut scratch,
+        )?;
+        let (enet_cnode, enet_slots) = retype_cnode::<U12>(ut, slots)?;
+        let (slots_c, enet_slots) = enet_slots.alloc();
+        let (enet_int_consumer, mut enet_int_consumer_token) =
+            InterruptConsumer::new(ut, &mut irq_control, &root_cnode, slots, slots_c)?;
+        //
+        // shared setup between tcpip and enet drivers
+        //
+
+        // enet <- tcpip L2 frame consumer & enet IRQ waker
+        let (enet_consumer, enet_producer_setup) = enet_int_consumer
+            .add_queue::<IpcEthernetFrame, L2IpcQueueDepth, L2IpcQueuePageBits, _>(
+                &mut enet_int_consumer_token,
+                ut,
+                &mut scratch,
+                &mut enet_vspace,
+                &root_cnode,
+                slots,
+                slots,
+            )?;
+
+        // tcpip -> enet L2 frame producer
+        let (slots_p, tcpip_slots) = tcpip_slots.alloc();
+        let tcpip_eth_producer = Producer::new(
+            &enet_producer_setup,
+            slots_p,
+            &mut tcpip_vspace,
+            &root_cnode,
+            slots,
+        )?;
+
+        // tcpip <- enet L2 frame consumer
+        let (slots_c, _tcpip_slots) = tcpip_slots.alloc();
+        let (
+            tcpip_eth_consumer,
+            _tcpip_eth_consumer_token,
+            tcpip_eth_producer_setup,
+            _tcpip_eth_waker_setup,
+        ) = Consumer1::new::<L2IpcQueueDepth, L2IpcQueuePageBits, _>(
+            ut,
+            ut,
+            &mut scratch,
+            &mut tcpip_vspace,
+            &root_cnode,
+            slots,
+            slots,
+            slots,
+            slots_c,
+        )?;
+
+        // enet -> tcpip L2 frame producer
+        let (slots_p, enet_slots) = enet_slots.alloc();
+        let enet_producer = Producer::new(
+            &tcpip_eth_producer_setup,
+            slots_p,
+            &mut enet_vspace,
+            &root_cnode,
+            slots,
+        )?;
+
+        //
+        // drivers/tcpip setup continued
+        //
+
+        let params = tcpip::ProcParams {
+            frame_consumer: tcpip_eth_consumer,
+            frame_producer: tcpip_eth_producer,
+        };
+        let stack_mem: UnmappedMemoryRegion<<resources::TcpIp as ElfProc>::StackSizeBits, _> =
+            UnmappedMemoryRegion::new(ut, slots).unwrap();
+        let stack_mem =
+            root_vspace.map_region(stack_mem, CapRights::RW, arch::vm_attributes::DEFAULT)?;
+        let mut tcpip_process = StandardProcess::new::<tcpip::ProcParams<_>, _>(
+            &mut tcpip_vspace,
+            tcpip_cnode,
+            stack_mem,
+            &root_cnode,
+            tcpip_elf_data,
+            params,
+            ut, // ipc_buffer_ut
+            ut, // tcb_ut
+            slots,
+            &tpa, // priority_authority
+            None, // fault
+        )?;
+
+        //
+        // drivers/enet setup continued
+        //
+
+        let enet_ut = dev_allocator
+            .get_untyped_by_address_range_slot_infallible(
+                PageAlignedAddressRange::new_by_size(
+                    pac::enet::ENET::PADDR as _,
+                    pac::enet::ENET::SIZE,
+                )?,
+                slots,
+            )?
+            .as_strong::<arch::PageBits>()
+            .expect("Device untyped was not the right size!");
+        let enet_mem = enet_vspace.map_region(
+            UnmappedMemoryRegion::new_device(enet_ut, slots)?,
+            CapRights::RW,
+            arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
+        )?;
+        let dma_mem_unmapped: UnmappedMemoryRegion<enet::EthDmaMemSizeInBits, _> =
+            UnmappedMemoryRegion::new(ut, slots)?;
+        let (mem_slots, _enet_slots) = enet_slots.alloc();
+        let dma_mem = enet_vspace.map_region_and_move(
+            dma_mem_unmapped,
+            CapRights::RW,
+            // NOTE: driver expects uncached DMA memory for the time being
+            arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
+            &root_cnode,
+            mem_slots,
+        )?;
+        let params = enet::ProcParams {
+            enet: unsafe { pac::enet::ENET::from_vaddr(enet_mem.vaddr() as _) },
+            consumer: enet_consumer,
+            producer: enet_producer,
+            dma_mem,
+            // TODO - map OTP device in root-task, read burned in MAC, use forged if all zeros
+            mac_addr: EthernetAddress([0x00, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE]),
+        };
+        let stack_mem: UnmappedMemoryRegion<<resources::Enet as ElfProc>::StackSizeBits, _> =
+            UnmappedMemoryRegion::new(ut, slots).unwrap();
+        let stack_mem =
+            root_vspace.map_region(stack_mem, CapRights::RW, arch::vm_attributes::DEFAULT)?;
+        let mut enet_process = StandardProcess::new::<enet::ProcParams<_>, _>(
+            &mut enet_vspace,
+            enet_cnode,
+            stack_mem,
+            &root_cnode,
+            enet_elf_data,
             params,
             ut, // ipc_buffer_ut
             ut, // tcb_ut
@@ -161,7 +361,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         log::debug!("[root-task] Setting up persistent-storage driver");
 
         let (asid, asid_pool) = asid_pool.alloc();
-        let vspace_slots: LocalCNodeSlots<U16> = slots;
+        let vspace_slots: LocalCNodeSlots<ferros::arch::CodePageCount> = slots;
         let vspace_ut: LocalCap<Untyped<U16>> = ut;
         let mut pstorage_vspace = VSpace::new_from_elf::<resources::PersistentStorage>(
             retype(ut, slots)?, // paging_root
@@ -175,16 +375,16 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             &root_cnode,
             &mut scratch,
         )?;
-        let (proc_cnode, proc_slots) = retype_cnode::<U12>(ut, slots)?;
-        let (ipc_slots, proc_slots) = proc_slots.alloc();
+        let (pstorage_cnode, pstorage_slots) = retype_cnode::<U12>(ut, slots)?;
+        let (ipc_slots, pstorage_slots) = pstorage_slots.alloc();
         let (pstorage_ipc_setup, responder) = call_channel(ut, &root_cnode, slots, ipc_slots)?;
-        let (ipc_slots, proc_slots) = proc_slots.alloc();
+        let (ipc_slots, pstorage_slots) = pstorage_slots.alloc();
         let iomux_caller = iomux_ipc_setup.create_caller(ipc_slots)?;
         let storage_buffer_unmapped: UnmappedMemoryRegion<
             persistent_storage::StorageBufferSizeBits,
             _,
         > = UnmappedMemoryRegion::new(ut, slots)?;
-        let (mem_slots, proc_slots) = proc_slots.alloc();
+        let (mem_slots, pstorage_slots) = pstorage_slots.alloc();
         let storage_buffer = pstorage_vspace.map_region_and_move(
             storage_buffer_unmapped,
             CapRights::RW,
@@ -196,7 +396,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             persistent_storage::ScratchpadBufferSizeBits,
             _,
         > = UnmappedMemoryRegion::new(ut, slots)?;
-        let (mem_slots, _proc_slots) = proc_slots.alloc();
+        let (mem_slots, _pstorage_slots) = pstorage_slots.alloc();
         let scratchpad_buffer = pstorage_vspace.map_region_and_move(
             scratchpad_buffer_unmapped,
             CapRights::RW,
@@ -250,7 +450,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             root_vspace.map_region(stack_mem, CapRights::RW, arch::vm_attributes::DEFAULT)?;
         let mut pstorage_process = StandardProcess::new::<persistent_storage::ProcParams<_>, _>(
             &mut pstorage_vspace,
-            proc_cnode,
+            pstorage_cnode,
             stack_mem,
             &root_cnode,
             pstorage_elf_data,
@@ -269,7 +469,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         log::debug!("[root-task] Setting up console application");
 
         let (asid, _asid_pool) = asid_pool.alloc();
-        let vspace_slots: LocalCNodeSlots<U16> = slots;
+        let vspace_slots: LocalCNodeSlots<ferros::arch::CodePageCount> = slots;
         let vspace_ut: LocalCap<Untyped<U16>> = ut;
         let mut console_vspace = VSpace::new_from_elf::<resources::Console>(
             retype(ut, slots)?, // paging_root
@@ -283,10 +483,10 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             &root_cnode,
             &mut scratch,
         )?;
-        let (proc_cnode, proc_slots) = retype_cnode::<U12>(ut, slots)?;
-        let (ipc_slots, proc_slots) = proc_slots.alloc();
+        let (console_cnode, console_slots) = retype_cnode::<U12>(ut, slots)?;
+        let (ipc_slots, console_slots) = console_slots.alloc();
         let storage_caller = pstorage_ipc_setup.create_caller(ipc_slots)?;
-        let (slots_c, _proc_slots) = proc_slots.alloc();
+        let (slots_c, _console_slots) = console_slots.alloc();
         let (int_consumer, _int_consumer_token) =
             InterruptConsumer::new(ut, &mut irq_control, &root_cnode, slots, slots_c)?;
         let uart1_ut = dev_allocator
@@ -302,7 +502,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         let uart1_mem = console_vspace.map_region(
             UnmappedMemoryRegion::new_device(uart1_ut, slots)?,
             CapRights::RW,
-            arch::vm_attributes::DEFAULT,
+            arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
         )?;
         let params = console::ProcParams {
             uart: unsafe { pac::uart1::UART1::from_vaddr(uart1_mem.vaddr() as _) },
@@ -315,7 +515,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             root_vspace.map_region(stack_mem, CapRights::RW, arch::vm_attributes::DEFAULT)?;
         let mut console_process = StandardProcess::new::<console::ProcParams<_>, _>(
             &mut console_vspace,
-            proc_cnode,
+            console_cnode,
             stack_mem,
             &root_cnode,
             console_elf_data,
@@ -328,8 +528,19 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         )?;
     });
 
+    iomux_process.set_name("iomux");
     iomux_process.start()?;
+
+    enet_process.set_name("enet-driver");
+    enet_process.start()?;
+
+    tcpip_process.set_name("tcpip-driver");
+    tcpip_process.start()?;
+
+    pstorage_process.set_name("persistent-storage");
     pstorage_process.start()?;
+
+    console_process.set_name("console");
     console_process.start()?;
 
     // NOTE: we could stop the root-task here instead

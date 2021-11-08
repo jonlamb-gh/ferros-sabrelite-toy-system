@@ -17,7 +17,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
         .map(|()| log::set_max_level(DebugLogger::max_log_level_from_env()))
         .unwrap();
 
-    log::debug!("[iomux] process started");
+    log::debug!("[iomux] Process started");
 
     let mut iomuxc = params.iomuxc;
 

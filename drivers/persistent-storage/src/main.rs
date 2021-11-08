@@ -34,7 +34,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
         .map(|()| log::set_max_level(DebugLogger::max_log_level_from_env()))
         .unwrap();
 
-    log::debug!("[persistent-storage] process started",);
+    log::debug!("[persistent-storage] Process started",);
 
     log::debug!(
         "[persistent-storage] storage vaddr=0x{:X} size={}",
@@ -98,6 +98,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
                 }
                 Request::Get(key) => {
                     let key_hash = get_hashed_key(key.as_bytes());
+                    value_buffer.fill(0);
                     match tickv.get_key(key_hash, &mut value_buffer) {
                         Ok(_sc) => {
                             // Make sure it's UTF-8

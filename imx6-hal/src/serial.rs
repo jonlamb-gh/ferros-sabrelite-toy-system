@@ -1,6 +1,7 @@
 // TODO
 // - need to deal PINS/IOMUX, clocks, etc
 // - Error type, read status bits
+// - do proper reset + init
 // - sealed Instance trait for peripherials, UART: Instance
 
 use crate::pac::{typenum::U1, uart1::*};
@@ -15,8 +16,11 @@ pub struct Serial<UART> {
 
 impl Serial<UART1> {
     pub fn new(mut uart: UART1) -> Self {
-        // TODO - do real reset + init
-        // https://github.com/torvalds/linux/blob/master/drivers/tty/serial/imx.c
+        uart.ctl1.modify(Control1::Enable::Clear);
+        uart.ctl1.modify(Control1::Enable::Set);
+        // TODO reset SRST
+        uart.ctl2
+            .modify(Control2::RxEnable::Set + Control2::TxEnable::Set);
         uart.ctl2
             .modify(Control2::SoftwareReset::Field::checked::<U1>());
         uart.ctl1

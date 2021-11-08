@@ -43,6 +43,12 @@ The default is `RUST_LOG=debug`.
 When using QEMU, the script [mkflsh.sh](scripts/mkflash.sh) setups up a binary file
 to back the flash storage (`target/flash/flash.bin`).
 
+In a separate terminal, run the QEMU networking script:
+```bash
+sudo ./scripts/setup-networking.sh
+Adding interface 'qemu-net'
+```
+
 ```bash
 ./scripts/simulate.sh
 ```

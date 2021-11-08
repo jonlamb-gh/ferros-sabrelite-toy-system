@@ -14,6 +14,22 @@ fn main() {
     };
     println!("cargo:rerun-if-changed={}", iomux.path.display());
 
+    let enet = ElfResource {
+        path: bin_dir.join("enet"),
+        image_name: "enet".to_owned(),
+        type_name: "Enet".to_owned(),
+        stack_size_bits: Some(16),
+    };
+    println!("cargo:rerun-if-changed={}", enet.path.display());
+
+    let tcpip = ElfResource {
+        path: bin_dir.join("tcpip"),
+        image_name: "tcpip".to_owned(),
+        type_name: "TcpIp".to_owned(),
+        stack_size_bits: Some(16),
+    };
+    println!("cargo:rerun-if-changed={}", tcpip.path.display());
+
     let persistent_storage = ElfResource {
         path: bin_dir.join("persistent-storage"),
         image_name: "persistent-storage".to_owned(),
@@ -35,6 +51,8 @@ fn main() {
 
     let procs = vec![
         &iomux as &dyn Resource,
+        &enet as &dyn Resource,
+        &tcpip as &dyn Resource,
         &persistent_storage as &dyn Resource,
         &console as &dyn Resource,
     ];

@@ -7,6 +7,8 @@ pub use imx6_devices::{bounded_registers, typenum};
 pub use nb;
 
 pub mod asm;
+pub mod enet;
 pub mod gpio;
+pub mod otp;
 pub mod serial;
 pub mod spi;

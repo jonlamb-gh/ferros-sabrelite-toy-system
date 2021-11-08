@@ -21,7 +21,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
         .map(|()| log::set_max_level(DebugLogger::max_log_level_from_env()))
         .unwrap();
 
-    log::debug!("[console] process started");
+    log::debug!("[console] Process started");
 
     let int_consumer = params.int_consumer;
     let serial = Serial::new(params.uart);
@@ -31,12 +31,13 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     };
 
     // Console buffer on the stack
+    // TODO - get this mem from an untyped
     let mut buffer = [0_u8; 128];
     let state = Runner::new(&ROOT_MENU, &mut buffer, context);
 
     // TODO - this info is only if running on QEMU, otherwise it's the UART1 serial
     // port
-    log::info!("[console] run 'telnet 0.0.0.0 8888' to connect to the console interface");
+    log::info!("[console] Run 'telnet 0.0.0.0 8888' to connect to the console interface");
     int_consumer.consume(state, move |mut state| {
         if let Ok(b) = state.context.serial.read() {
             state.input_byte(b);
