@@ -12,13 +12,17 @@ use ferros::userland::*;
 use ferros::vspace::ElfProc;
 use ferros::vspace::*;
 use ferros::*;
-use net_types::{EthernetAddress, IpcEthernetFrame, Ipv4Address, MtuSize};
+use net_types::{EthernetAddress, IpcEthernetFrame, IpcUdpTransmitBuffer, Ipv4Address, MtuSize};
 use sabrelite_bsp::{debug_logger::DebugLogger, pac};
 use typenum::*;
 
 /// 2^16 bytes in the L2 queues can buffer ~43 Ethernet frames
 type L2IpcQueuePageBits = U16;
 type L2IpcQueueDepth = op!(((U1 << L2IpcQueuePageBits) / MtuSize) - U1);
+
+/// 2^14 bytes in the UDP queue can buffer ~10 Ethernet frames
+type UdpIpcQueuePageBits = U14;
+type UdpIpcQueueDepth = op!(((U1 << UdpIpcQueuePageBits) / MtuSize) - U1);
 
 const MAC_ADDRESS: EthernetAddress = EthernetAddress([0x00, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE]);
 const IP_ADDRESS: Ipv4Address = Ipv4Address([192, 0, 2, 80]);
@@ -275,13 +279,28 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             slots,
         )?;
 
+        // tcpip <- console app UDP consumer & GPT IRQ waker
+        let (slots_c, tcpip_slots) = tcpip_slots.alloc();
+        let (tcpip_int_consumer, mut tcpip_int_consumer_token) =
+            InterruptConsumer::new(ut, &mut irq_control, &root_cnode, slots, slots_c)?;
+        let (tcpip_event_consumer, tcpip_event_producer_setup) = tcpip_int_consumer
+            .add_queue::<IpcUdpTransmitBuffer, UdpIpcQueueDepth, UdpIpcQueuePageBits, _>(
+            &mut tcpip_int_consumer_token,
+            ut,
+            &mut scratch,
+            &mut tcpip_vspace,
+            &root_cnode,
+            slots,
+            slots,
+        )?;
+
         //
         // drivers/tcpip setup continued
         //
 
         let socket_buffer_mem_unmapped: UnmappedMemoryRegion<tcpip::RxTxSocketBufferSizeBits, _> =
             UnmappedMemoryRegion::new(ut, slots)?;
-        let (mem_slots, tcpip_slots) = tcpip_slots.alloc();
+        let (mem_slots, _tcpip_slots) = tcpip_slots.alloc();
         let socket_buffer_mem = tcpip_vspace.map_region_and_move(
             socket_buffer_mem_unmapped,
             CapRights::RW,
@@ -289,9 +308,26 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             &root_cnode,
             mem_slots,
         )?;
+        let gpt_ut = dev_allocator
+            .get_untyped_by_address_range_slot_infallible(
+                PageAlignedAddressRange::new_by_size(
+                    pac::gpt::GPT::PADDR as _,
+                    pac::gpt::GPT::SIZE,
+                )?,
+                slots,
+            )?
+            .as_strong::<arch::PageBits>()
+            .expect("Device untyped was not the right size!");
+        let gpt_mem = tcpip_vspace.map_region(
+            UnmappedMemoryRegion::new_device(gpt_ut, slots)?,
+            CapRights::RW,
+            arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
+        )?;
         let params = tcpip::ProcParams {
+            gpt: unsafe { pac::gpt::GPT::from_vaddr(gpt_mem.vaddr() as _) },
             frame_consumer: tcpip_eth_consumer,
             frame_producer: tcpip_eth_producer,
+            event_consumer: tcpip_event_consumer,
             socket_buffer_mem,
             mac_addr: MAC_ADDRESS,
             ip_addr: IP_ADDRESS,
@@ -501,7 +537,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         let (console_cnode, console_slots) = retype_cnode::<U12>(ut, slots)?;
         let (ipc_slots, console_slots) = console_slots.alloc();
         let storage_caller = pstorage_ipc_setup.create_caller(ipc_slots)?;
-        let (slots_c, _console_slots) = console_slots.alloc();
+        let (slots_c, console_slots) = console_slots.alloc();
         let (int_consumer, _int_consumer_token) =
             InterruptConsumer::new(ut, &mut irq_control, &root_cnode, slots, slots_c)?;
         let uart1_ut = dev_allocator
@@ -514,15 +550,35 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             )?
             .as_strong::<arch::PageBits>()
             .expect("Device untyped was not the right size!");
+        let (slots_p, console_slots) = console_slots.alloc();
+        let udp_producer = Producer::new(
+            &tcpip_event_producer_setup,
+            slots_p,
+            &mut console_vspace,
+            &root_cnode,
+            slots,
+        )?;
         let uart1_mem = console_vspace.map_region(
             UnmappedMemoryRegion::new_device(uart1_ut, slots)?,
             CapRights::RW,
             arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
         )?;
+        let console_buffer_unmapped: UnmappedMemoryRegion<console::ConsoleBufferSizeBits, _> =
+            UnmappedMemoryRegion::new(ut, slots)?;
+        let (mem_slots, _console_slots) = console_slots.alloc();
+        let console_buffer = console_vspace.map_region_and_move(
+            console_buffer_unmapped,
+            CapRights::RW,
+            arch::vm_attributes::DEFAULT,
+            &root_cnode,
+            mem_slots,
+        )?;
         let params = console::ProcParams {
             uart: unsafe { pac::uart1::UART1::from_vaddr(uart1_mem.vaddr() as _) },
-            storage_caller,
             int_consumer,
+            storage_caller,
+            udp_producer,
+            console_buffer,
         };
         let stack_mem: UnmappedMemoryRegion<<resources::Console as ElfProc>::StackSizeBits, _> =
             UnmappedMemoryRegion::new(ut, slots).unwrap();

@@ -14,5 +14,8 @@ log = "0.4"
 [dependencies.sabrelite-bsp]
 path = "../../sabrelite-bsp"
 
+[dependencies.net-types]
+path = "../../libraries/net-types"
+
 [dependencies.persistent-storage]
 path = "../../drivers/persistent-storage"

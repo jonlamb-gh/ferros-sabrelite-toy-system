@@ -5,8 +5,12 @@ use selfe_runtime as _;
 
 use console::ProcParams;
 use core::fmt::{self, Write as WriteFmt};
-use ferros::{cap::role, userland::Caller};
+use ferros::{
+    cap::role,
+    userland::{Caller, Producer},
+};
 use menu::*;
+use net_types::{EthernetFrameBuffer, IpcUdpTransmitBuffer};
 use sabrelite_bsp::debug_logger::DebugLogger;
 use sabrelite_bsp::embedded_hal::serial::Read;
 use sabrelite_bsp::imx6_hal::pac::uart1::UART1;
@@ -28,16 +32,18 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     let context = Context {
         serial,
         storage_caller: params.storage_caller,
+        udp_producer: params.udp_producer,
     };
 
-    // Console buffer on the stack
-    // TODO - get this mem from an untyped
-    let mut buffer = [0_u8; 128];
-    let state = Runner::new(&ROOT_MENU, &mut buffer, context);
+    let mut console_buffer_mem = params.console_buffer;
+    console_buffer_mem.flush().unwrap();
+    let console_buffer = console_buffer_mem.as_mut_slice();
+    console_buffer.fill(0);
+    let state = Runner::new(&ROOT_MENU, console_buffer, context);
 
     // TODO - this info is only if running on QEMU, otherwise it's the UART1 serial
     // port
-    log::info!("[console] Run 'telnet 0.0.0.0 8888' to connect to the console interface");
+    log::info!("[console] Run 'telnet 0.0.0.0 8888' to connect to the console interface (QEMU)");
     int_consumer.consume(state, move |mut state| {
         if let Ok(b) = state.context.serial.read() {
             state.input_byte(b);
@@ -53,6 +59,7 @@ pub struct Context {
         Result<persistent_storage::Response, persistent_storage::ErrorCode>,
         role::Local,
     >,
+    udp_producer: Producer<role::Local, IpcUdpTransmitBuffer>,
 }
 
 impl fmt::Write for Context {
@@ -63,64 +70,96 @@ impl fmt::Write for Context {
 
 const ROOT_MENU: Menu<Context> = Menu {
     label: "root",
-    items: &[&Item {
-        command: "storage",
-        help: Some("Enter the persistent storage sub-menu."),
-        item_type: ItemType::Menu(&Menu {
-            label: "storage",
-            items: &[
-                &Item {
-                    command: "append",
-                    help: Some(storage::append::HELP),
-                    item_type: ItemType::Callback {
-                        function: storage::append::cmd,
-                        parameters: &[
-                            Parameter::Mandatory {
+    items: &[
+        &Item {
+            command: "storage",
+            help: Some("Enter the persistent storage sub-menu."),
+            item_type: ItemType::Menu(&Menu {
+                label: "storage",
+                items: &[
+                    &Item {
+                        command: "append",
+                        help: Some(storage::append::HELP),
+                        item_type: ItemType::Callback {
+                            function: storage::append::cmd,
+                            parameters: &[
+                                Parameter::Mandatory {
+                                    parameter_name: "key",
+                                    help: Some("The entry's key string"),
+                                },
+                                Parameter::Mandatory {
+                                    parameter_name: "value",
+                                    help: Some("The entry's value string"),
+                                },
+                            ],
+                        },
+                    },
+                    &Item {
+                        command: "get",
+                        help: Some(storage::get::HELP),
+                        item_type: ItemType::Callback {
+                            function: storage::get::cmd,
+                            parameters: &[Parameter::Mandatory {
                                 parameter_name: "key",
                                 help: Some("The entry's key string"),
+                            }],
+                        },
+                    },
+                    &Item {
+                        command: "invalidate",
+                        help: Some(storage::invalidate::HELP),
+                        item_type: ItemType::Callback {
+                            function: storage::invalidate::cmd,
+                            parameters: &[Parameter::Mandatory {
+                                parameter_name: "key",
+                                help: Some("The entry's key string"),
+                            }],
+                        },
+                    },
+                    &Item {
+                        command: "gc",
+                        help: Some(storage::gc::HELP),
+                        item_type: ItemType::Callback {
+                            function: storage::gc::cmd,
+                            parameters: &[],
+                        },
+                    },
+                ],
+                entry: None,
+                exit: None,
+            }),
+        },
+        &Item {
+            command: "net",
+            help: Some("Enter the network sub-menu."),
+            item_type: ItemType::Menu(&Menu {
+                label: "net",
+                items: &[&Item {
+                    command: "sendto",
+                    help: Some(net::sendto::HELP),
+                    item_type: ItemType::Callback {
+                        function: net::sendto::cmd,
+                        parameters: &[
+                            Parameter::Mandatory {
+                                parameter_name: "addr",
+                                help: Some("The remote address"),
                             },
                             Parameter::Mandatory {
-                                parameter_name: "value",
-                                help: Some("The entry's value string"),
+                                parameter_name: "port",
+                                help: Some("The remote port number"),
+                            },
+                            Parameter::Mandatory {
+                                parameter_name: "data",
+                                help: Some("The data to send"),
                             },
                         ],
                     },
-                },
-                &Item {
-                    command: "get",
-                    help: Some(storage::get::HELP),
-                    item_type: ItemType::Callback {
-                        function: storage::get::cmd,
-                        parameters: &[Parameter::Mandatory {
-                            parameter_name: "key",
-                            help: Some("The entry's key string"),
-                        }],
-                    },
-                },
-                &Item {
-                    command: "invalidate",
-                    help: Some(storage::invalidate::HELP),
-                    item_type: ItemType::Callback {
-                        function: storage::invalidate::cmd,
-                        parameters: &[Parameter::Mandatory {
-                            parameter_name: "key",
-                            help: Some("The entry's key string"),
-                        }],
-                    },
-                },
-                &Item {
-                    command: "gc",
-                    help: Some(storage::gc::HELP),
-                    item_type: ItemType::Callback {
-                        function: storage::gc::cmd,
-                        parameters: &[],
-                    },
-                },
-            ],
-            entry: None,
-            exit: None,
-        }),
-    }],
+                }],
+                entry: None,
+                exit: None,
+            }),
+        },
+    ],
     entry: Some(enter_root_menu),
     exit: None,
 };
@@ -255,6 +294,58 @@ mod storage {
                 .expect("Failed to perform a blocking_call");
 
             print_resp(context, &resp);
+        }
+    }
+}
+
+mod net {
+    use super::*;
+
+    pub mod sendto {
+        use super::*;
+
+        pub const HELP: &str = "Send a UDP message.
+  
+    Example:
+    sendto 192.0.2.2 4567 hello";
+
+        pub fn cmd(
+            _menu: &Menu<Context>,
+            item: &Item<Context>,
+            args: &[&str],
+            context: &mut Context,
+        ) {
+            let addr = menu::argument_finder(item, args, "addr").unwrap().unwrap();
+            let mut addr_octets = [0_u8; 4];
+            for (idx, part) in addr.split('.').into_iter().enumerate() {
+                addr_octets[idx] = part.parse().unwrap();
+            }
+
+            let port = menu::argument_finder(item, args, "port").unwrap().unwrap();
+            let port: u16 = port.parse().unwrap();
+
+            let data = menu::argument_finder(item, args, "data").unwrap().unwrap();
+            let data_bytes = data.as_bytes();
+            let data_len = data_bytes.len();
+
+            let mut msg = IpcUdpTransmitBuffer {
+                dst_addr: addr_octets.into(),
+                dst_port: port.into(),
+                frame: EthernetFrameBuffer::new(),
+            };
+            msg.frame.truncate(data_len);
+            msg.frame.as_mut_slice().copy_from_slice(data_bytes);
+
+            log::debug!(
+                "[console] Send UDP message to {}:{} data='{}'",
+                addr,
+                port,
+                data
+            );
+
+            if context.udp_producer.send(msg).is_err() {
+                log::warn!("[console] Rejected sending IpcUdpTransmitBuffer data to TCP/IP driver");
+            }
         }
     }
 }

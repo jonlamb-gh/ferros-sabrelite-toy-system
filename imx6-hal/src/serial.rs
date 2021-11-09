@@ -77,12 +77,3 @@ impl fmt::Write for Serial<UART1> {
         Ok(())
     }
 }
-
-/*
-pub trait Instance: crate::Sealed + rcc::Enable + rcc::Reset + rcc::GetBusFreq {
-    #[doc(hidden)]
-    fn ptr() -> *const uart_base::RegisterBlock;
-    #[doc(hidden)]
-    fn set_stopbits(&self, bits: config::StopBits);
-}
-*/

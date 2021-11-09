@@ -3,7 +3,8 @@
 use ferros::cap::{role, CNodeRole};
 use ferros::userland::{Consumer1, Producer, RetypeForSetup};
 use ferros::vspace::{shared_status, MappedMemoryRegion};
-use net_types::{EthernetAddress, IpcEthernetFrame, Ipv4Address, MtuSize};
+use net_types::{EthernetAddress, IpcEthernetFrame, IpcUdpTransmitBuffer, Ipv4Address, MtuSize};
+use sabrelite_bsp::imx6_hal::pac::gpt::{self, GPT};
 use static_assertions::const_assert;
 use typenum::{op, Unsigned, U1, U12, U2};
 
@@ -20,13 +21,20 @@ const_assert!(RxTxSocketBufferSize::USIZE >= MtuSize4x::USIZE);
 
 #[repr(C)]
 pub struct ProcParams<Role: CNodeRole> {
-    // TODO - timer w/IRQ
-    // IPC for L3/udp
+    /// General purpose timer provides a time domain
+    /// and periodic service interrupt
+    pub gpt: GPT,
+
     /// Consumer of Ethernet frames from a L2 driver
     pub frame_consumer: Consumer1<Role, IpcEthernetFrame>,
 
     /// Producer of Ethernet frames destined to a L2 driver
     pub frame_producer: Producer<Role, IpcEthernetFrame>,
+
+    /// The event consumer handles:
+    /// - GPT IRQ notification events (via Waker)
+    /// - UDP transmit buffers
+    pub event_consumer: Consumer1<Role, IpcUdpTransmitBuffer, gpt::Irq>,
 
     /// Memory for the socket buffers, split in half for rx and tx by the driver
     pub socket_buffer_mem: MappedMemoryRegion<RxTxSocketBufferSizeBits, shared_status::Exclusive>,

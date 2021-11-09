@@ -3,8 +3,10 @@
 use core::fmt;
 
 mod frame;
+mod udp_transmit_buffer;
 
 pub use crate::frame::*;
+pub use crate::udp_transmit_buffer::*;
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default)]
 pub struct Port(pub u16);

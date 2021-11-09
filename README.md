@@ -40,7 +40,7 @@ The default is `RUST_LOG=debug`.
 
 ### Simulating
 
-When using QEMU, the script [mkflsh.sh](scripts/mkflash.sh) setups up a binary file
+When using QEMU, the script [mkflash.sh](scripts/mkflash.sh) setups up a binary file
 to back the flash storage (`target/flash/flash.bin`).
 
 In a separate terminal, run the QEMU networking script:
@@ -77,18 +77,18 @@ Jumping to kernel-image entry point...
 Bootstrapping kernel
 Booting all finished, dropped to user space
 DEBUG: [root-task] Initializing
-DEBUG: [root-task] Found iomux ELF data size=3080424
-DEBUG: [root-task] Found enet ELF data size=4714108
-DEBUG: [root-task] Found tcpip ELF data size=4088384
-DEBUG: [root-task] Found persistent-storage ELF data size=4771608
-DEBUG: [root-task] Found console ELF data size=4742192
+DEBUG: [root-task] Found iomux ELF data size=3086944
+DEBUG: [root-task] Found enet ELF data size=4833796
+DEBUG: [root-task] Found tcpip ELF data size=5925816
+DEBUG: [root-task] Found persistent-storage ELF data size=4891732
+DEBUG: [root-task] Found console ELF data size=5127100
 DEBUG: [root-task] Setting up iomux driver
 DEBUG: [root-task] Setting up tcpip driver
 DEBUG: [root-task] Setting up enet driver
 DEBUG: [root-task] Setting up persistent-storage driver
 DEBUG: [root-task] Setting up console application
 DEBUG: [console] Process started
-INFO: [console] Run 'telnet 0.0.0.0 8888' to connect to the console interface
+INFO: [console] Run 'telnet 0.0.0.0 8888' to connect to the console interface (QEMU)
 DEBUG: [persistent-storage] Process started
 DEBUG: [persistent-storage] storage vaddr=0x66000 size=4096
 DEBUG: [persistent-storage] scratchpad vaddr=0x67000 size=4096
@@ -113,6 +113,7 @@ telnet 0.0.0.0 8888
 > help
 AVAILABLE ITEMS:
   storage
+  net
   help [ <command> ]
 
 > help storage
@@ -132,6 +133,21 @@ AVAILABLE ITEMS:
   gc
   exit
   help [ <command> ]
+
+> help net
+SUMMARY:
+  net
+
+DESCRIPTION:
+Enter the network sub-menu.
+
+> net
+
+/net> help
+AVAILABLE ITEMS:
+  sendto <addr> <port> <data>
+  exit
+  help [ <command> ]
 ```
 
 You can ping the IP stack (smoltcp):
@@ -142,4 +158,17 @@ PING 192.0.2.80 (192.0.2.80) 56(84) bytes of data.
 64 bytes from 192.0.2.80: icmp_seq=1 ttl=64 time=44.4 ms
 64 bytes from 192.0.2.80: icmp_seq=2 ttl=64 time=8.38 ms
 64 bytes from 192.0.2.80: icmp_seq=3 ttl=64 time=8.61 ms
+```
+
+Send UDP data from the console.
+On the remote side:
+```bash
+netcat -lu 192.0.2.2 4567
+```
+
+In the console:
+```bash
+> net
+
+/net> sendto 192.0.2.2 4567 hello
 ```

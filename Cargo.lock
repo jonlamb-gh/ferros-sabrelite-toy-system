@@ -153,6 +153,7 @@ dependencies = [
  "ferros",
  "log",
  "menu",
+ "net-types",
  "persistent-storage",
  "sabrelite-bsp",
  "selfe-runtime",
@@ -300,6 +301,7 @@ dependencies = [
  "net-types",
  "num",
  "static_assertions",
+ "void",
 ]
 
 [[package]]

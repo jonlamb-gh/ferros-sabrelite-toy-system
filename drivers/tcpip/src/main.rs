@@ -5,10 +5,15 @@ use selfe_runtime as _;
 
 use crate::ipc_phy_dev::IpcPhyDevice;
 use ferros::cap::role;
+use net_types::IpcUdpTransmitBuffer;
 use sabrelite_bsp::debug_logger::DebugLogger;
+use sabrelite_bsp::imx6_hal::{
+    embedded_hal::timer::CountDown,
+    timer::{Event as TimerEvent, Hertz, Timer},
+};
 use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder, NeighborCache, Routes};
 use smoltcp::socket::{SocketHandle, SocketSet, UdpPacketMetadata, UdpSocket, UdpSocketBuffer};
-use smoltcp::time::{Duration, Instant};
+use smoltcp::time::Instant;
 use smoltcp::wire::{IpCidr, IpEndpoint};
 use tcpip::ProcParams;
 
@@ -16,9 +21,12 @@ mod ipc_phy_dev;
 
 /// Maximum number of ARP (Neighbor) cache entries
 /// available in the storage
-const MAX_ARP_ENTRIES: usize = 32;
+const MAX_ARP_ENTRIES: usize = 8;
 
 const EPHEMERAL_PORT: u16 = 49152;
+
+const TIMER_RATE: Hertz = Hertz(100);
+const TIMER_MS_PER_TICK: u32 = 1000 / TIMER_RATE.0;
 
 static LOGGER: DebugLogger = DebugLogger;
 
@@ -46,7 +54,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     let mut routes_storage = [None; 4];
     let routes = Routes::new(&mut routes_storage[..]);
 
-    let mut iface = EthernetInterfaceBuilder::new(ipc_phy)
+    let iface = EthernetInterfaceBuilder::new(ipc_phy)
         .ethernet_addr(ethernet_addr)
         .ip_addrs(&mut ip_addrs[..])
         .neighbor_cache(neighbor_cache)
@@ -78,23 +86,88 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
         .bind(EPHEMERAL_PORT)
         .unwrap();
 
+    let mut timer = Timer::new(params.gpt);
+    timer.start(TIMER_RATE);
+    timer.listen(TimerEvent::TimeOut);
+
     log::debug!(
         "[tcpip-driver] TCP/IP stack is up IP={} MAC={}",
         params.ip_addr,
         params.mac_addr
     );
 
-    let mut mock_timer = 0_i64;
-    loop {
-        // TODO TIMER/IRQ
-        for _ in 0..10 {
-            unsafe { selfe_sys::seL4_Yield() };
-        }
+    let initial_state = Driver {
+        iface,
+        sockets,
+        udp_handle,
+        timer,
+        timer_ms: 0,
+    };
 
-        if let Err(e) = iface.poll(&mut sockets, Instant::from_millis(mock_timer)) {
+    params.event_consumer.consume(
+        initial_state,
+        |mut state| {
+            // Non-queue wakeup event
+            //log::trace!("[tcpip-driver IRQ wakeup");
+
+            // Ack timer interrupt
+            state.ack_timer_irq();
+
+            // Service the IP stack,
+            state.poll();
+
+            state
+        },
+        |udp_transmit_buffer, mut state| {
+            // UDP transmit buffer queue
+            log::trace!("[tcpip-driver] Processing {}", udp_transmit_buffer);
+            state.handle_udp_tx_buffer(udp_transmit_buffer);
+
+            // Service the IP stack,
+            state.poll();
+
+            state
+        },
+    );
+}
+
+struct Driver<'a> {
+    iface: EthernetInterface<'a, IpcPhyDevice>,
+    sockets: SocketSet<'a>,
+    udp_handle: SocketHandle,
+    timer: Timer,
+    timer_ms: i64,
+}
+
+impl<'a> Driver<'a> {
+    pub fn ack_timer_irq(&mut self) {
+        self.timer.wait().ok();
+        self.timer_ms = self.timer_ms.wrapping_add(TIMER_MS_PER_TICK.into());
+    }
+
+    pub fn get_time(&self) -> Instant {
+        Instant::from_millis(self.timer_ms)
+    }
+
+    pub fn poll(&mut self) {
+        let time = self.get_time();
+        if let Err(e) = self.iface.poll(&mut self.sockets, time) {
             log::trace!("[tcpip-driver] {:?}", e);
         }
+    }
 
-        mock_timer = mock_timer.wrapping_add(1);
+    pub fn handle_udp_tx_buffer(&mut self, udp_tx: IpcUdpTransmitBuffer) {
+        let endpoint = IpEndpoint::new(
+            smoltcp::wire::Ipv4Address(udp_tx.dst_addr.0.into()).into(),
+            udp_tx.dst_port.0,
+        );
+
+        if let Err(e) = self
+            .sockets
+            .get::<UdpSocket>(self.udp_handle)
+            .send_slice(udp_tx.frame.as_slice(), endpoint)
+        {
+            log::warn!("[tcpip-driver] Failed to send UDP transmit buffer, {}", e);
+        }
     }
 }

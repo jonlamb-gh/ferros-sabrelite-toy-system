@@ -45,7 +45,7 @@ fn main() {
         path: bin_dir.join("console"),
         image_name: "console".to_owned(),
         type_name: "Console".to_owned(),
-        stack_size_bits: Some(14),
+        stack_size_bits: Some(15),
     };
     println!("cargo:rerun-if-changed={}", console.path.display());
 
