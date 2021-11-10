@@ -5,16 +5,15 @@ use selfe_runtime as _;
 
 use console::ProcParams;
 use core::fmt::{self, Write as WriteFmt};
+use debug_logger::DebugLogger;
 use ferros::{
     cap::role,
     userland::{Caller, Producer},
 };
+use imx6_hal::embedded_hal::serial::Read;
+use imx6_hal::{pac::uart1::UART1, serial::Serial};
 use menu::*;
 use net_types::{EthernetFrameBuffer, IpcUdpTransmitBuffer};
-use sabrelite_bsp::debug_logger::DebugLogger;
-use sabrelite_bsp::embedded_hal::serial::Read;
-use sabrelite_bsp::imx6_hal::pac::uart1::UART1;
-use sabrelite_bsp::imx6_hal::serial::Serial;
 
 static LOGGER: DebugLogger = DebugLogger;
 

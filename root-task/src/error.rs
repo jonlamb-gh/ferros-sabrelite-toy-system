@@ -10,6 +10,7 @@ use ferros::vspace::VSpaceError;
 use log::SetLoggerError;
 use selfe_arc::read::ReadError as ArchiveReadError;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug)]
 pub enum TopLevelError {
     AllocError(AllocError),

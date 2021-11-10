@@ -4,13 +4,13 @@
 use selfe_runtime as _;
 
 use crate::ipc_phy_dev::IpcPhyDevice;
+use debug_logger::DebugLogger;
 use ferros::cap::role;
-use net_types::IpcUdpTransmitBuffer;
-use sabrelite_bsp::debug_logger::DebugLogger;
-use sabrelite_bsp::imx6_hal::{
+use imx6_hal::{
     embedded_hal::timer::CountDown,
     timer::{Event as TimerEvent, Hertz, Timer},
 };
+use net_types::IpcUdpTransmitBuffer;
 use smoltcp::iface::{EthernetInterface, EthernetInterfaceBuilder, NeighborCache, Routes};
 use smoltcp::socket::{SocketHandle, SocketSet, UdpPacketMetadata, UdpSocket, UdpSocketBuffer};
 use smoltcp::time::Instant;
@@ -158,7 +158,7 @@ impl<'a> Driver<'a> {
 
     pub fn handle_udp_tx_buffer(&mut self, udp_tx: IpcUdpTransmitBuffer) {
         let endpoint = IpEndpoint::new(
-            smoltcp::wire::Ipv4Address(udp_tx.dst_addr.0.into()).into(),
+            smoltcp::wire::Ipv4Address(udp_tx.dst_addr.0).into(),
             udp_tx.dst_port.0,
         );
 

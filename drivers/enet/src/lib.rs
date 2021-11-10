@@ -3,11 +3,11 @@
 use ferros::cap::{role, CNodeRole};
 use ferros::userland::{Consumer1, Producer, RetypeForSetup};
 use ferros::vspace::{shared_status, MappedMemoryRegion};
-use net_types::{EthernetAddress, IpcEthernetFrame};
-use sabrelite_bsp::pac::{
+use imx6_hal::pac::{
     enet::{self, ENET},
     typenum::{op, U1, U16},
 };
+use net_types::{EthernetAddress, IpcEthernetFrame};
 
 /// Expected badge value on IRQ notifications
 pub type IrqBadgeBits = enet::Irq;

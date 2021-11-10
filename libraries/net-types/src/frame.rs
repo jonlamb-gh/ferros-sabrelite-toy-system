@@ -33,6 +33,10 @@ impl<const N: usize> EthernetFrameBuffer<N> {
         self.len == self.capacity()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     pub fn truncate(&mut self, len: usize) {
         if len < self.len() {
             self.len = len;

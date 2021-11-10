@@ -1,16 +1,12 @@
 //! SPI NOR FLASH
 
-// NOTE: some of this was based on https://github.com/jonas-schievink/spi-memory
-// It differs slightly due to the weird imx6 ECSPI driver, mostly based on the
-// u-boot driver
-
-use bitflags::bitflags;
-use imx6_hal::embedded_hal::{blocking::spi::Transfer, digital::v2::OutputPin};
-use imx6_hal::pac::ecspi1::ECSPI1;
-use imx6_hal::{
+use crate::{
+    embedded_hal::{blocking::spi::Transfer, digital::v2::OutputPin},
     gpio::{Output, PushPull, P3_19},
+    pac::ecspi1::ECSPI1,
     spi::Spi,
 };
+use bitflags::bitflags;
 
 /// 2 MiB
 pub const FLASH_SIZE_BYTES: usize = 2 * 1024 * 1024;
@@ -75,12 +71,12 @@ enum Opcode {
     PageProg = 0x02,
 }
 
-pub struct Flash {
+pub struct SpiNorFlash {
     spi: Spi<ECSPI1>,
     cs: CsPin,
 }
 
-impl Flash {
+impl SpiNorFlash {
     pub fn init(spi: Spi<ECSPI1>, cs: CsPin) -> Result<Self, Error> {
         let mut f = Self { spi, cs };
         let status = f.read_status()?;

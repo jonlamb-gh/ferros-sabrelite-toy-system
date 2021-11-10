@@ -91,15 +91,13 @@ impl<'a> TxToken for IpcPhyTxToken<'a> {
 
         let result = f(data.as_mut_slice());
 
-        // TODO - do something with the data instead of dropping it
-        if result.is_ok() {
-            if self.producer.send(data).is_err() {
-                log::warn!(
-                    "[ipc-phy-dev] [{}] Rejected sending IpcEthernetFrame data to L2 driver",
-                    timestamp
-                );
-                return Err(Error::Exhausted);
-            }
+        if result.is_ok() && self.producer.send(data).is_err() {
+            // Drop the data if the queue is full
+            log::warn!(
+                "[ipc-phy-dev] [{}] Rejected sending IpcEthernetFrame data to L2 driver",
+                timestamp
+            );
+            return Err(Error::Exhausted);
         }
 
         result

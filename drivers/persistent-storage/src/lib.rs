@@ -5,7 +5,7 @@ use ferros::cap::{role, CNodeRole};
 use ferros::userland::{Caller, Responder, RetypeForSetup};
 use ferros::vspace::{shared_status, MappedMemoryRegion};
 use heapless::String;
-use sabrelite_bsp::pac::{
+use imx6_hal::pac::{
     ecspi1::ECSPI1,
     gpio::GPIO3,
     typenum::{op, U1, U12},
@@ -37,6 +37,7 @@ impl fmt::Display for Request {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum Response {
     KeyAppended(SuccessCode),

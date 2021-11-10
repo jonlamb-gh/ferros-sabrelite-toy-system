@@ -11,8 +11,11 @@ ferros = { git = "https://github.com/auxoncorp/ferros.git" }
 menu = "0.3"
 log = "0.4"
 
-[dependencies.sabrelite-bsp]
-path = "../../sabrelite-bsp"
+[dependencies.imx6-hal]
+path = "../../imx6-hal"
+
+[dependencies.debug-logger]
+path = "../../libraries/debug-logger"
 
 [dependencies.net-types]
 path = "../../libraries/net-types"

@@ -114,7 +114,7 @@ impl<const N: usize> DmaRing<Tx, N> {
         !status.contains(tx::Status::R)
     }
 
-    // Note size checked by caller
+    // NOTE the size is checked by the caller
     pub(crate) fn fill_and_increment(&mut self, data: &[u8]) {
         let len = data.len();
         {

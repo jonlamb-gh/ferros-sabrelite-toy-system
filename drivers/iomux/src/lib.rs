@@ -2,7 +2,7 @@
 
 use ferros::cap::{role, CNodeRole};
 use ferros::userland::{Responder, RetypeForSetup};
-use sabrelite_bsp::pac::iomuxc::IOMUXC;
+use imx6_hal::pac::iomuxc::IOMUXC;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Request {

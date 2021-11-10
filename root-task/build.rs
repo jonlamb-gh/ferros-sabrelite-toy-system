@@ -58,4 +58,6 @@ fn main() {
     ];
 
     embed_resources(&resources, procs);
+
+    built::write_built_file().expect("Failed to acquire build-time information")
 }

@@ -3,10 +3,10 @@
 
 use selfe_runtime as _;
 
+use debug_logger::DebugLogger;
 use ferros::cap::role;
+use imx6_hal::pac::{iomuxc::*, typenum};
 use iomux::{ProcParams, Request, Response};
-use sabrelite_bsp::debug_logger::DebugLogger;
-use sabrelite_bsp::pac::{iomuxc::*, typenum};
 
 static LOGGER: DebugLogger = DebugLogger;
 

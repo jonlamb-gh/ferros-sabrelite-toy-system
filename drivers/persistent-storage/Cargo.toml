@@ -12,11 +12,14 @@ log = "0.4"
 static_assertions = "1.1"
 heapless = "0.7"
 
+[dependencies.imx6-hal]
+path = "../../imx6-hal"
+
+[dependencies.debug-logger]
+path = "../../libraries/debug-logger"
+
 [dependencies.iomux]
 path = "../iomux"
-
-[dependencies.sabrelite-bsp]
-path = "../../sabrelite-bsp"
 
 [dependencies.tickv]
 git = "https://github.com/tock/tock.git"

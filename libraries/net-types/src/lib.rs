@@ -17,9 +17,9 @@ impl From<u16> for Port {
     }
 }
 
-impl Into<u16> for Port {
-    fn into(self) -> u16 {
-        self.0
+impl From<Port> for u16 {
+    fn from(port: Port) -> Self {
+        port.0
     }
 }
 
@@ -38,9 +38,9 @@ impl From<[u8; 6]> for EthernetAddress {
     }
 }
 
-impl Into<[u8; 6]> for EthernetAddress {
-    fn into(self) -> [u8; 6] {
-        self.0
+impl From<EthernetAddress> for [u8; 6] {
+    fn from(addr: EthernetAddress) -> Self {
+        addr.0
     }
 }
 
@@ -64,9 +64,9 @@ impl From<[u8; 4]> for Ipv4Address {
     }
 }
 
-impl Into<[u8; 4]> for Ipv4Address {
-    fn into(self) -> [u8; 4] {
-        self.0
+impl From<Ipv4Address> for [u8; 4] {
+    fn from(addr: Ipv4Address) -> Self {
+        addr.0
     }
 }
 

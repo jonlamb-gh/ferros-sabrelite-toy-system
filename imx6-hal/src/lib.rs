@@ -12,5 +12,6 @@ pub mod gpio;
 pub mod otp;
 pub mod serial;
 pub mod spi;
+pub mod spi_nor_flash;
 pub mod timer;
 pub mod watchdog;

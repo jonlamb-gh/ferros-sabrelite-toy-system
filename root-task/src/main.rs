@@ -3,6 +3,7 @@
 
 mod error;
 
+use debug_logger::DebugLogger;
 use error::TopLevelError;
 use ferros::alloc::micro_alloc::*;
 use ferros::alloc::*;
@@ -12,8 +13,10 @@ use ferros::userland::*;
 use ferros::vspace::ElfProc;
 use ferros::vspace::*;
 use ferros::*;
+use imx6_hal::pac::{
+    ecspi1::ECSPI1, enet::ENET, gpio::GPIO3, gpt::GPT, iomuxc::IOMUXC, uart1::UART1,
+};
 use net_types::{EthernetAddress, IpcEthernetFrame, IpcUdpTransmitBuffer, Ipv4Address, MtuSize};
-use sabrelite_bsp::{debug_logger::DebugLogger, pac};
 use typenum::*;
 
 /// 2^16 bytes in the L2 queues can buffer ~43 Ethernet frames
@@ -24,6 +27,7 @@ type L2IpcQueueDepth = op!(((U1 << L2IpcQueuePageBits) / MtuSize) - U1);
 type UdpIpcQueuePageBits = U14;
 type UdpIpcQueueDepth = op!(((U1 << UdpIpcQueuePageBits) / MtuSize) - U1);
 
+// TODO - read hw OTP MAC address, use forged if not available
 const MAC_ADDRESS: EthernetAddress = EthernetAddress([0x00, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE]);
 const IP_ADDRESS: Ipv4Address = Ipv4Address([192, 0, 2, 80]);
 
@@ -32,6 +36,10 @@ static LOGGER: DebugLogger = DebugLogger;
 extern "C" {
     static _selfe_arc_data_start: u8;
     static _selfe_arc_data_end: usize;
+}
+
+pub mod built_info {
+    include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
 #[allow(clippy::type_complexity)]
@@ -46,7 +54,11 @@ fn main() {
 
 fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelError> {
     log::set_logger(&LOGGER).map(|()| log::set_max_level(DebugLogger::max_log_level_from_env()))?;
-    log::debug!("[root-task] Initializing");
+    log::debug!(
+        "[root-task] Initializing version={} profile={}",
+        built_info::PKG_VERSION,
+        built_info::PROFILE,
+    );
 
     let (allocator, mut dev_allocator) = micro_alloc::bootstrap_allocators(raw_bootinfo)?;
     let mut allocator = WUTBuddy::from(allocator);
@@ -141,10 +153,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         let (iomux_ipc_setup, responder) = call_channel(ut, &root_cnode, slots, ipc_slots)?;
         let iomuxc_ut = dev_allocator
             .get_untyped_by_address_range_slot_infallible(
-                PageAlignedAddressRange::new_by_size(
-                    pac::iomuxc::IOMUXC::PADDR as _,
-                    pac::iomuxc::IOMUXC::SIZE,
-                )?,
+                PageAlignedAddressRange::new_by_size(IOMUXC::PADDR as _, IOMUXC::SIZE)?,
                 slots,
             )?
             .as_strong::<arch::PageBits>()
@@ -155,7 +164,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
         )?;
         let params = iomux::ProcParams {
-            iomuxc: unsafe { pac::iomuxc::IOMUXC::from_vaddr(iomuxc_mem.vaddr() as _) },
+            iomuxc: unsafe { IOMUXC::from_vaddr(iomuxc_mem.vaddr() as _) },
             responder,
         };
         let stack_mem: UnmappedMemoryRegion<<resources::Iomux as ElfProc>::StackSizeBits, _> =
@@ -310,10 +319,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         )?;
         let gpt_ut = dev_allocator
             .get_untyped_by_address_range_slot_infallible(
-                PageAlignedAddressRange::new_by_size(
-                    pac::gpt::GPT::PADDR as _,
-                    pac::gpt::GPT::SIZE,
-                )?,
+                PageAlignedAddressRange::new_by_size(GPT::PADDR as _, GPT::SIZE)?,
                 slots,
             )?
             .as_strong::<arch::PageBits>()
@@ -324,7 +330,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
         )?;
         let params = tcpip::ProcParams {
-            gpt: unsafe { pac::gpt::GPT::from_vaddr(gpt_mem.vaddr() as _) },
+            gpt: unsafe { GPT::from_vaddr(gpt_mem.vaddr() as _) },
             frame_consumer: tcpip_eth_consumer,
             frame_producer: tcpip_eth_producer,
             event_consumer: tcpip_event_consumer,
@@ -356,10 +362,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
 
         let enet_ut = dev_allocator
             .get_untyped_by_address_range_slot_infallible(
-                PageAlignedAddressRange::new_by_size(
-                    pac::enet::ENET::PADDR as _,
-                    pac::enet::ENET::SIZE,
-                )?,
+                PageAlignedAddressRange::new_by_size(ENET::PADDR as _, ENET::SIZE)?,
                 slots,
             )?
             .as_strong::<arch::PageBits>()
@@ -381,7 +384,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             mem_slots,
         )?;
         let params = enet::ProcParams {
-            enet: unsafe { pac::enet::ENET::from_vaddr(enet_mem.vaddr() as _) },
+            enet: unsafe { ENET::from_vaddr(enet_mem.vaddr() as _) },
             consumer: enet_consumer,
             producer: enet_producer,
             dma_mem,
@@ -457,10 +460,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         )?;
         let spi1_ut = dev_allocator
             .get_untyped_by_address_range_slot_infallible(
-                PageAlignedAddressRange::new_by_size(
-                    pac::ecspi1::ECSPI1::PADDR as _,
-                    pac::ecspi1::ECSPI1::SIZE,
-                )?,
+                PageAlignedAddressRange::new_by_size(ECSPI1::PADDR as _, ECSPI1::SIZE)?,
                 slots,
             )?
             .as_strong::<arch::PageBits>()
@@ -472,10 +472,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         )?;
         let gpio3_ut = dev_allocator
             .get_untyped_by_address_range_slot_infallible(
-                PageAlignedAddressRange::new_by_size(
-                    pac::gpio::GPIO3::PADDR as _,
-                    pac::gpio::GPIO3::SIZE,
-                )?,
+                PageAlignedAddressRange::new_by_size(GPIO3::PADDR as _, GPIO3::SIZE)?,
                 slots,
             )?
             .as_strong::<arch::PageBits>()
@@ -486,8 +483,8 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
         )?;
         let params = persistent_storage::ProcParams {
-            spi: unsafe { pac::ecspi1::ECSPI1::from_vaddr(spi1_mem.vaddr() as _) },
-            gpio3: unsafe { pac::gpio::GPIO3::from_vaddr(gpio3_mem.vaddr() as _) },
+            spi: unsafe { ECSPI1::from_vaddr(spi1_mem.vaddr() as _) },
+            gpio3: unsafe { GPIO3::from_vaddr(gpio3_mem.vaddr() as _) },
             iomux_caller,
             responder,
             storage_buffer,
@@ -542,10 +539,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             InterruptConsumer::new(ut, &mut irq_control, &root_cnode, slots, slots_c)?;
         let uart1_ut = dev_allocator
             .get_untyped_by_address_range_slot_infallible(
-                PageAlignedAddressRange::new_by_size(
-                    pac::uart1::UART1::PADDR as _,
-                    pac::uart1::UART1::SIZE,
-                )?,
+                PageAlignedAddressRange::new_by_size(UART1::PADDR as _, UART1::SIZE)?,
                 slots,
             )?
             .as_strong::<arch::PageBits>()
@@ -574,7 +568,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             mem_slots,
         )?;
         let params = console::ProcParams {
-            uart: unsafe { pac::uart1::UART1::from_vaddr(uart1_mem.vaddr() as _) },
+            uart: unsafe { UART1::from_vaddr(uart1_mem.vaddr() as _) },
             int_consumer,
             storage_caller,
             udp_producer,
@@ -601,17 +595,24 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
 
     iomux_process.set_name("iomux");
     iomux_process.start()?;
+    simple_yield_delay(1000);
 
     enet_process.set_name("enet-driver");
+    unsafe { selfe_sys::seL4_TCB_SetAffinity(enet_process.unsafe_get_tcb_cptr(), 1) };
     enet_process.start()?;
+    simple_yield_delay(1000);
 
     tcpip_process.set_name("tcpip-driver");
+    unsafe { selfe_sys::seL4_TCB_SetAffinity(tcpip_process.unsafe_get_tcb_cptr(), 2) };
     tcpip_process.start()?;
+    simple_yield_delay(1000);
 
     pstorage_process.set_name("persistent-storage");
     pstorage_process.start()?;
+    simple_yield_delay(1000);
 
     console_process.set_name("console");
+    unsafe { selfe_sys::seL4_TCB_SetAffinity(console_process.unsafe_get_tcb_cptr(), 3) };
     console_process.start()?;
 
     // NOTE: we could stop the root-task here instead
@@ -619,5 +620,12 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         loop {
             selfe_sys::seL4_Yield();
         }
+    }
+}
+
+/// Basic yield-based delay so we don't clobber the debug log output on startup
+fn simple_yield_delay(cnt: usize) {
+    for _ in 0..cnt {
+        unsafe { selfe_sys::seL4_Yield() };
     }
 }

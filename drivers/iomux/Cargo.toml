@@ -10,5 +10,8 @@ selfe-runtime = { git = "https://github.com/auxoncorp/selfe-sys", features = ["p
 ferros = { git = "https://github.com/auxoncorp/ferros.git" }
 log = "0.4"
 
-[dependencies.sabrelite-bsp]
-path = "../../sabrelite-bsp"
+[dependencies.imx6-hal]
+path = "../../imx6-hal"
+
+[dependencies.debug-logger]
+path = "../../libraries/debug-logger"

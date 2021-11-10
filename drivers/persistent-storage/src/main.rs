@@ -7,15 +7,16 @@ use crate::flash_controller::SpiNorFlashController;
 use core::convert::TryInto;
 use core::hash::{Hash, Hasher};
 use core::str;
+use debug_logger::DebugLogger;
 use ferros::cap::role;
+use imx6_hal::{
+    gpio::GpioExt,
+    pac::typenum::Unsigned,
+    spi::Spi,
+    spi_nor_flash::{SpiNorFlash, ERASE_SIZE_BYTES},
+};
 use persistent_storage::{
     ProcParams, Request, Response, StorageBufferSizeBytes, Value, MAX_VALUE_SIZE,
-};
-use sabrelite_bsp::imx6_hal::{gpio::GpioExt, spi::Spi};
-use sabrelite_bsp::{
-    debug_logger::DebugLogger,
-    flash::{Flash, ERASE_SIZE_BYTES},
-    pac::typenum::Unsigned,
 };
 use siphasher::sip::SipHasher;
 use static_assertions::const_assert_eq;
@@ -72,7 +73,7 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
     let spi_nor_cs_pin = gpio.bank3.p3_19.into_push_pull_output();
     let spi = Spi::new(params.spi);
 
-    let spi_nor_flash = Flash::init(spi, spi_nor_cs_pin).unwrap();
+    let spi_nor_flash = SpiNorFlash::init(spi, spi_nor_cs_pin).unwrap();
     let flash = SpiNorFlashController::new(spi_nor_flash, scratchpad_buffer_slice).unwrap();
 
     let tickv = TicKV::<SpiNorFlashController, ERASE_SIZE_BYTES>::new(

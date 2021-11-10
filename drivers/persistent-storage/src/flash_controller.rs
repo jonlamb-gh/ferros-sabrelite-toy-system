@@ -1,5 +1,7 @@
 use core::cell::RefCell;
-use sabrelite_bsp::flash::{Flash, ERASE_SIZE_BYTES, FLASH_SIZE_BYTES, PAGE_SIZE_BYTES};
+use imx6_hal::spi_nor_flash::{
+    SpiNorFlash as Flash, ERASE_SIZE_BYTES, FLASH_SIZE_BYTES, PAGE_SIZE_BYTES,
+};
 use static_assertions::const_assert_eq;
 use tickv::{ErrorCode, FlashController};
 

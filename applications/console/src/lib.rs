@@ -3,11 +3,11 @@
 use ferros::cap::{role, CNodeRole};
 use ferros::userland::{Caller, InterruptConsumer, Producer, RetypeForSetup};
 use ferros::vspace::{shared_status, MappedMemoryRegion};
-use net_types::IpcUdpTransmitBuffer;
-use sabrelite_bsp::pac::{
+use imx6_hal::pac::{
     typenum::{op, U1, U12},
     uart1::{self, UART1},
 };
+use net_types::IpcUdpTransmitBuffer;
 
 /// Expected badge value on IRQ notifications
 pub type IrqBadgeBits = uart1::Irq;

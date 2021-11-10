@@ -3,13 +3,13 @@
 
 use selfe_runtime as _;
 
+use debug_logger::DebugLogger;
 use enet::ProcParams;
 use ferros::cap::role;
 use ferros::userland::Producer;
+use imx6_hal::enet::{uncached_memory_region::UncachedMemoryRegion, Enet};
+use imx6_hal::pac::typenum::Unsigned;
 use net_types::IpcEthernetFrame;
-use sabrelite_bsp::debug_logger::DebugLogger;
-use sabrelite_bsp::imx6_hal::enet::{uncached_memory_region::UncachedMemoryRegion, Enet};
-use sabrelite_bsp::imx6_hal::pac::typenum::Unsigned;
 
 static LOGGER: DebugLogger = DebugLogger;
 

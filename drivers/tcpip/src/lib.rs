@@ -3,8 +3,8 @@
 use ferros::cap::{role, CNodeRole};
 use ferros::userland::{Consumer1, Producer, RetypeForSetup};
 use ferros::vspace::{shared_status, MappedMemoryRegion};
+use imx6_hal::pac::gpt::{self, GPT};
 use net_types::{EthernetAddress, IpcEthernetFrame, IpcUdpTransmitBuffer, Ipv4Address, MtuSize};
-use sabrelite_bsp::imx6_hal::pac::gpt::{self, GPT};
 use static_assertions::const_assert;
 use typenum::{op, Unsigned, U1, U12, U2};
 

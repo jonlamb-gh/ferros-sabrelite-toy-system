@@ -1,3 +1,5 @@
+#![no_std]
+
 use ferros::debug_println;
 use log::{LevelFilter, Metadata, Record};
 
