@@ -7,6 +7,19 @@
 * [HW user manual](https://boundarydevices.com/wp-content/uploads/2014/11/SABRE_Lite_Hardware_Manual_rev11.pdf)
 * [HW components](https://boundarydevices.com/sabre_lite-revD.pdf)
 * [imx6 platform sdk](https://github.com/flit/imx6_platform_sdk)
+* [TickV](https://github.com/tock/tock/tree/master/libraries/tickv)
+
+## Overview
+
+### Process Tree
+
+![process_tree](doc/process_tree.png)
+
+### Persistent Storage
+
+![persistent_storage](doc/persistent_storage.png)
+
+TODO - diagrams for enet, tcpip, iomux
 
 ## Getting Started
 

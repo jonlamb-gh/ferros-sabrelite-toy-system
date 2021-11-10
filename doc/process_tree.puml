@@ -1,0 +1,67 @@
+@startuml
+
+skinparam defaultTextAlignment center
+
+node sel4_kernel [
+seL4 kernel
+]
+
+node root_task [
+root task
+]
+
+node console_app [
+console
+....
+application process
+....
+Command line
+interface to
+the system
+]
+
+node pstorage_driver [
+persistent-storage
+....
+driver process
+....
+Interface to tock's tickv
+key/value file system
+stored in Flash
+]
+
+node tcpip_driver [
+tcpip
+....
+driver process
+....
+UDP socket interface
+and smoltcp TCP/IP stack
+]
+
+node enet_driver [
+enet
+....
+driver process
+....
+Layer 2 ENET
+device driver
+]
+
+node iomux_driver [
+iomux
+....
+driver process
+....
+Brokers shared
+access to IOMUXC
+]
+
+sel4_kernel -- root_task
+root_task -- console_app
+root_task -- pstorage_driver
+root_task -- iomux_driver
+root_task -- enet_driver
+root_task -- tcpip_driver
+
+@enduml

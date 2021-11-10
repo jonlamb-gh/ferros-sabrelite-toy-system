@@ -1,0 +1,40 @@
+@startuml
+
+actor Human
+participant "Console" as Console
+participant "Driver Process" as DriverProc
+participant "Tock's tickv kv store" as TickV
+participant "SpiNorFlash Driver" as FlashDriver
+participant "ECSPI1 HAL Driver" as SpiDriver
+database "Flash" as Flash
+
+Human -> Console : /storage command
+Console -> DriverProc : Caller::blocking_call(&Request)
+hnote over DriverProc
+    Memory buffer from Untyped
+    managed by the process
+endhnote
+DriverProc -> TickV : TickV API call
+hnote over TickV
+    Sector/page segmentation
+    management
+endhnote
+TickV -> FlashDriver : tickv::FlashController impl
+hnote over FlashDriver
+    Flash read/write/erase
+endhnote
+FlashDriver -> SpiDriver : Spi::transfer
+SpiDriver -> Flash : IO
+hnote over Flash
+    This is backed by
+    a file when
+    emulating in QEMU
+endhnote
+SpiDriver <- Flash : IO
+FlashDriver <- SpiDriver : Spi::transfer Complete
+TickV <- FlashDriver : tickv::FlashController impl
+DriverProc <- TickV : Result
+Console <- DriverProc : Responder::reply_recv(Response)
+Human <- Console : Response
+
+@enduml
