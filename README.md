@@ -76,28 +76,28 @@ Jumping to kernel-image entry point...
 
 Bootstrapping kernel
 Booting all finished, dropped to user space
-DEBUG: [root-task] Initializing
-DEBUG: [root-task] Found iomux ELF data size=3086944
-DEBUG: [root-task] Found enet ELF data size=4833796
-DEBUG: [root-task] Found tcpip ELF data size=5925816
-DEBUG: [root-task] Found persistent-storage ELF data size=4891732
-DEBUG: [root-task] Found console ELF data size=5127100
+DEBUG: [root-task] Initializing version=0.1.0 profile=debug
+DEBUG: [root-task] Found iomux ELF data size=3085664
+DEBUG: [root-task] Found enet ELF data size=4850064
+DEBUG: [root-task] Found tcpip ELF data size=5925980
+DEBUG: [root-task] Found persistent-storage ELF data size=4913648
+DEBUG: [root-task] Found console ELF data size=5142756
 DEBUG: [root-task] Setting up iomux driver
 DEBUG: [root-task] Setting up tcpip driver
 DEBUG: [root-task] Setting up enet driver
 DEBUG: [root-task] Setting up persistent-storage driver
 DEBUG: [root-task] Setting up console application
-DEBUG: [console] Process started
-INFO: [console] Run 'telnet 0.0.0.0 8888' to connect to the console interface (QEMU)
+DEBUG: [iomux] Process started
+DEBUG: [enet-driver] Process started
+DEBUG: [tcpip-driver] Process started
 DEBUG: [persistent-storage] Process started
 DEBUG: [persistent-storage] storage vaddr=0x66000 size=4096
 DEBUG: [persistent-storage] scratchpad vaddr=0x67000 size=4096
-DEBUG: [tcpip-driver] Process started
-DEBUG: [tcpip-driver] TCP/IP stack is up IP=192.0.2.80 MAC=00:AD:BE:EF:CA:FE
-DEBUG: [enet-driver] Process started
-DEBUG: [iomux] Process started
 DEBUG: [iomux] Processing request ConfigureEcSpi1
 DEBUG: [persistent-storage] Configured ECSPI1 IO resp=EcSpi1Configured
+DEBUG: [tcpip-driver] TCP/IP stack is up IP=192.0.2.80 MAC=00:AD:BE:EF:CA:FE
+DEBUG: [console] Process started
+INFO: [console] Run 'telnet 0.0.0.0 8888' to connect to the console interface (QEMU)
 ```
 
 Telnet to get at the console:
