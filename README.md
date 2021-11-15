@@ -25,21 +25,32 @@ TODO - diagrams for enet, tcpip, iomux
 
 ### Dependencies
 
-```bash
-# Add the extracted toolchain's bin directory to your PATH
-wget https://releases.linaro.org/components/toolchain/binaries/7.4-2019.02/arm-linux-gnueabihf/gcc-linaro-7.4.1-2019.02-i686_arm-linux-gnueabihf.tar.xz
+* [rust](https://www.rust-lang.org/tools/install) (nightly)
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    rustup install nightly
+    rustup target add armv7-unknown-linux-gnueabihf
+    ```
 
-# Might need to manually install version >=6.1.0, you'll know if the ECSPI1 driver (or persistent-storage driver proc) hangs
-sudo apt install qemu-system-arm
+* [qemu-system-arm](https://www.qemu.org/download/) (for simulation, version >= 6.0.1)
+    ```bash
+    wget https://download.qemu.org/qemu-6.1.0.tar.xz
+    tar xvJf qemu-6.1.0.tar.xz
+    cd qemu-6.1.0
+    ./configure --target-list=arm-softmmu,arm-linux-user
+    make -j 4
+    sudo make install
+    ```
 
-# Install seL4 python deps
-# https://github.com/seL4/seL4/blob/4d0f02c029560cae0e8d93727eb17d58bcecc2ac/tools/python-deps/setup.py
-pip3 install --user setuptools sel4-deps
+* seL4 Python build dependencies
+    ```bash
+    pip3 install --user setuptools sel4-deps
+    ```
 
-rustup target add armv7-unknown-linux-gnueabihf
-
-cargo install --git https://github.com/auxoncorp/selfe-sys selfe-config --bin selfe --features bin --force
-```
+* [selfe](https://github.com/auxoncorp/selfe-sys)
+    ```bash
+    cargo install --git https://github.com/auxoncorp/selfe-sys selfe-config --bin selfe --features bin --force
+    ```
 
 ### Buidling
 
