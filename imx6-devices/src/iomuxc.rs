@@ -1,6 +1,8 @@
 //! IOMUXC
 //! See [IMX6DQRM](http://cache.freescale.com/files/32bit/doc/ref_manual/IMX6DQRM.pdf) chapter 36.
 
+// TODO - add the proper register defs for these
+
 use core::mem;
 use core::ops::{Deref, DerefMut};
 use static_assertions::const_assert_eq;
@@ -476,8 +478,8 @@ pub struct RegisterBlock {
     pub sw_pad_ctl_pad_jtag_tdi: MuxControl::Register,           // 0x684
     pub sw_pad_ctl_pad_jtag_tck: MuxControl::Register,           // 0x688
     pub sw_pad_ctl_pad_jtag_tdo: MuxControl::Register,           // 0x68C
-    pub sw_pad_ctl_pad_sd3_data7: MuxControl::Register,          // 0x690
-    pub sw_pad_ctl_pad_sd3_data6: MuxControl::Register,          // 0x694
+    pub sw_pad_ctl_pad_sd3_data7: PadControl::Register,          // 0x690
+    pub sw_pad_ctl_pad_sd3_data6: PadControl::Register,          // 0x694
     pub sw_pad_ctl_pad_sd3_data5: MuxControl::Register,          // 0x698
     pub sw_pad_ctl_pad_sd3_data4: MuxControl::Register,          // 0x69C
     pub sw_pad_ctl_pad_sd3_cmd: MuxControl::Register,            // 0x6A0
@@ -640,7 +642,7 @@ pub struct RegisterBlock {
     pub spdif_spdif_in1_select_input: MuxControl::Register,      // 0x914
     pub spdif_tx_clk2_select_input: MuxControl::Register,        // 0x918
     pub uart1_uart_rts_b_select_input: MuxControl::Register,     // 0x91C
-    pub uart1_uart_rx_data_select_input: MuxControl::Register,   // 0x920
+    pub uart1_uart_rx_data_select_input: SelectInput::Register,  // 0x920
     pub uart2_uart_rts_b_select_input: MuxControl::Register,     // 0x924
     pub uart2_uart_rx_data_select_input: MuxControl::Register,   // 0x928
     pub uart3_uart_rts_b_select_input: MuxControl::Register,     // 0x92C

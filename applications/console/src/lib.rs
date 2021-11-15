@@ -24,6 +24,9 @@ pub struct ProcParams<Role: CNodeRole> {
     /// Interrupt consumer for the console UART
     pub int_consumer: InterruptConsumer<uart1::Irq, Role>,
 
+    /// IPC to the IOMUX driver
+    pub iomux_caller: Caller<iomux::Request, iomux::Response, Role>,
+
     /// IPC to the storage driver
     pub storage_caller: Caller<
         persistent_storage::Request,

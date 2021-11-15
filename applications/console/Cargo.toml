@@ -20,5 +20,8 @@ path = "../../libraries/debug-logger"
 [dependencies.net-types]
 path = "../../libraries/net-types"
 
+[dependencies.iomux]
+path = "../../drivers/iomux"
+
 [dependencies.persistent-storage]
 path = "../../drivers/persistent-storage"

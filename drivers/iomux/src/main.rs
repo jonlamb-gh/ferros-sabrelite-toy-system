@@ -70,6 +70,26 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
 
                     Response::EcSpi1Configured
                 }
+                Request::ConfigureUart1 => {
+                    log::trace!("[iomux] PAD_SD3_DATA6__UART1_RX_DATA");
+                    iomuxc
+                        .sw_mux_ctl_pad_sd3_data6
+                        .modify(MuxControl::MuxMode::ALT1);
+                    iomuxc
+                        .uart1_uart_rx_data_select_input
+                        .modify(SelectInput::Daisy::Field::checked::<typenum::U3>());
+                    iomuxc
+                        .sw_pad_ctl_pad_sd3_data6
+                        .modify(PadControl::Bits::Field::new(0x1B0B1).unwrap());
+                    log::trace!("[iomux] PAD_SD3_DATA7__UART1_TX_DATA");
+                    iomuxc
+                        .sw_mux_ctl_pad_sd3_data7
+                        .modify(MuxControl::MuxMode::ALT1);
+                    iomuxc
+                        .sw_pad_ctl_pad_sd3_data7
+                        .modify(PadControl::Bits::Field::new(0x1B0B1).unwrap());
+                    Response::Uart1Configured
+                }
             }
         })
         .expect("Could not set up a reply_recv");

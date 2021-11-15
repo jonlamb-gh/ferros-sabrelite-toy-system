@@ -79,6 +79,51 @@ register! {
 }
 
 register! {
+    Control3,
+    u32,
+    RW,
+    Fields [
+        RxdMuxSelect        WIDTH(U1) OFFSET(U2),
+        AutoBaudOff         WIDTH(U1) OFFSET(U7),
+        RingIndicator       WIDTH(U1) OFFSET(U8),
+        DataCarrierDetect   WIDTH(U1) OFFSET(U9),
+        DataSetReady        WIDTH(U1) OFFSET(U10),
+    ]
+}
+
+register! {
+    Control4,
+    u32,
+    RW,
+    Fields [
+        CtsTriggerLevel     WIDTH(U6) OFFSET(U10) [
+            RxFifoChars32 = U32
+        ]
+    ]
+}
+
+register! {
+    FifoControl,
+    u32,
+    RW,
+    Fields [
+        RxTriggerLevel      WIDTH(U6) OFFSET(U0) [
+            TlRxFifoChars1 = U1
+        ]
+        DceDteMode          WIDTH(U1) OFFSET(U6) [
+            DceMode = U0,
+            DteMode = U1
+        ]
+        RefFreqDiv          WIDTH(U3) OFFSET(U7) [
+            DivideBy2 = U4
+        ]
+        TxTriggerLevel      WIDTH(U6) OFFSET(U10) [
+            TlTxFifoChars2OrLess = U2
+        ]
+    ]
+}
+
+register! {
     Status2,
     u32,
     RW,
@@ -88,18 +133,53 @@ register! {
     ]
 }
 
-const_assert_eq!(mem::size_of::<RegisterBlock>(), 0x9C);
+register! {
+    BrmInc,
+    u32,
+    RW,
+    Fields [
+        IncNumerator    WIDTH(U16) OFFSET(U0),
+    ]
+}
+
+register! {
+    BrmMod,
+    u32,
+    RW,
+    Fields [
+        ModDenominator  WIDTH(U16) OFFSET(U0),
+    ]
+}
+
+register! {
+    Test,
+    u32,
+    RW,
+    Fields [
+        SoftwareReset      WIDTH(U1) OFFSET(U0),
+    ]
+}
+
+const_assert_eq!(mem::size_of::<RegisterBlock>(), 0xB8);
 
 #[repr(C)]
 pub struct RegisterBlock {
-    pub rx: Rx::Register,         // 0x00
-    __reserved_0: [u32; 15],      // 0x04
-    pub tx: Tx::Register,         // 0x40
-    __reserved_1: [u32; 15],      // 0x44
-    pub ctl1: Control1::Register, // 0x80
-    pub ctl2: Control2::Register, // 0x84
-    __reserved_2: [u32; 4],       // 0x88
-    pub stat2: Status2::Register, // 0x98
+    pub rx: Rx::Register,            // 0x00
+    __reserved_0: [u32; 15],         // 0x04
+    pub tx: Tx::Register,            // 0x40
+    __reserved_1: [u32; 15],         // 0x44
+    pub ctl1: Control1::Register,    // 0x80
+    pub ctl2: Control2::Register,    // 0x84
+    pub ctl3: Control3::Register,    // 0x88
+    pub ctl4: Control4::Register,    // 0x8C
+    pub fctl: FifoControl::Register, // 0x90
+    __reserved_2: u32,               // 0x94
+    pub stat2: Status2::Register,    // 0x98
+    __reserved_3: [u32; 2],          // 0x9C
+    pub bir: BrmInc::Register,       // 0xA4
+    pub bmr: BrmMod::Register,       // 0xA8
+    __reserved_4: [u32; 2],          // 0xAC
+    pub test: Test::Register,        // 0xB4
 }
 
 pub struct UART1 {

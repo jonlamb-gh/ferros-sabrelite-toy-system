@@ -11,7 +11,10 @@ use ferros::{
     userland::{Caller, Producer},
 };
 use imx6_hal::embedded_hal::serial::Read;
-use imx6_hal::{pac::uart1::UART1, serial::Serial};
+use imx6_hal::{
+    pac::uart1::UART1,
+    serial::{Event as SerialEvent, Serial},
+};
 use menu::*;
 use net_types::{EthernetFrameBuffer, IpcUdpTransmitBuffer};
 
@@ -26,8 +29,16 @@ pub extern "C" fn _start(params: ProcParams<role::Local>) -> ! {
 
     log::debug!("[console] Process started");
 
+    // Configure UART1 IO
+    let resp = params
+        .iomux_caller
+        .blocking_call(&iomux::Request::ConfigureUart1)
+        .unwrap();
+    log::debug!("[console] Configured UART1 IO resp={:?}", resp);
+
     let int_consumer = params.int_consumer;
-    let serial = Serial::new(params.uart);
+    let mut serial = Serial::new(params.uart);
+    serial.listen(SerialEvent::Receive);
     let context = Context {
         serial,
         storage_caller: params.storage_caller,

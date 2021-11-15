@@ -558,6 +558,8 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
             CapRights::RW,
             arch::vm_attributes::DEFAULT & !arch::vm_attributes::PAGE_CACHEABLE,
         )?;
+        let (ipc_slots, console_slots) = console_slots.alloc();
+        let iomux_caller = iomux_ipc_setup.create_caller(ipc_slots)?;
         let console_buffer_unmapped: UnmappedMemoryRegion<console::ConsoleBufferSizeBits, _> =
             UnmappedMemoryRegion::new(ut, slots)?;
         let (mem_slots, _console_slots) = console_slots.alloc();
@@ -571,6 +573,7 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
         let params = console::ProcParams {
             uart: unsafe { UART1::from_vaddr(uart1_mem.vaddr() as _) },
             int_consumer,
+            iomux_caller,
             storage_caller,
             udp_producer,
             console_buffer,
@@ -596,21 +599,21 @@ fn run(raw_bootinfo: &'static selfe_sys::seL4_BootInfo) -> Result<(), TopLevelEr
 
     iomux_process.set_name("iomux");
     iomux_process.start()?;
-    simple_yield_delay(1000);
+    simple_yield_delay(10000);
+
+    pstorage_process.set_name("persistent-storage");
+    pstorage_process.start()?;
+    simple_yield_delay(10000);
 
     enet_process.set_name("enet-driver");
     unsafe { selfe_sys::seL4_TCB_SetAffinity(enet_process.unsafe_get_tcb_cptr(), 1) };
     enet_process.start()?;
-    simple_yield_delay(1000);
+    simple_yield_delay(10000);
 
     tcpip_process.set_name("tcpip-driver");
     unsafe { selfe_sys::seL4_TCB_SetAffinity(tcpip_process.unsafe_get_tcb_cptr(), 2) };
     tcpip_process.start()?;
-    simple_yield_delay(1000);
-
-    pstorage_process.set_name("persistent-storage");
-    pstorage_process.start()?;
-    simple_yield_delay(1000);
+    simple_yield_delay(10000);
 
     console_process.set_name("console");
     unsafe { selfe_sys::seL4_TCB_SetAffinity(console_process.unsafe_get_tcb_cptr(), 3) };

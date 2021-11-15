@@ -7,11 +7,13 @@ use imx6_hal::pac::iomuxc::IOMUXC;
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Request {
     ConfigureEcSpi1,
+    ConfigureUart1,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Response {
     EcSpi1Configured,
+    Uart1Configured,
 }
 
 #[repr(C)]
